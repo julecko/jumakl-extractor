@@ -1,6 +1,6 @@
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let url: &str = "http://example.com";
+    let url: &str = "https://www.auto-max.sk/media/export/produkty_sk.xml";
 
     let response = match reqwest::get(url).await {
         Ok(resp) => resp,
