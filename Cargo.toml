@@ -12,5 +12,5 @@ edition = "2024"
 
 [dependencies]
 quick-xml = "0.40.1"
-reqwest = "0.13.4"
+reqwest = { version = "0.13.4", features = ["blocking"] }
 tokio = { version = "1.52.3", features = ["full"] }
