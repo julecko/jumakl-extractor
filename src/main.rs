@@ -1,8 +1,13 @@
 mod config;
+mod cli;
 
 use std::error::Error;
 use reqwest::blocking::Client;
+
+use clap::Parser;
+
 use config::Config;
+use cli::Cli;
 
 fn fetch(client: &Client, url: &str) -> Result<String, Box<dyn Error>> {
     let response = client.get(url).send()?;
@@ -12,34 +17,11 @@ fn fetch(client: &Client, url: &str) -> Result<String, Box<dyn Error>> {
 }
 
 fn main() -> anyhow::Result<()> {
-    let config = Config::load("config/sources.stock.toml")?;
+    let cli = Cli::parse();
+    let config = Config::load(cli.config_path())?;
 
+    println!("{:#?}", cli);
     println!("{:#?}", config);
-
-    for source in &config.sources {
-        println!("\n--- Source: {} ---", source.name);
-        println!("URL: {}", source.url);
-
-        match &source.format_config {
-            config::FormatConfig::Xml(xml) => {
-                println!("Format: XML (record_tag = {})", xml.xml.record_tag);
-            }
-            config::FormatConfig::Csv(csv) => {
-                println!(
-                    "Format: CSV (delimiter = {:?}, has_header = {})",
-                    csv.csv.delimiter, csv.csv.has_header
-                );
-            }
-        }
-
-        println!("Fields:");
-        for (field_name, mapping) in &source.fields {
-            println!(
-                "  {} <- selector \"{}\" ({:?})",
-                field_name, mapping.selector, mapping.r#type
-            );
-        }
-    }
 
     Ok(())
 }
