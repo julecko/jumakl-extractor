@@ -2,23 +2,16 @@ mod config;
 mod cli;
 mod logging;
 mod helpers;
+mod pipeline;
+mod webrequest;
 
-use std::error::Error;
 use std::time::Instant;
 
-use reqwest::blocking::Client;
 use clap::Parser;
 use dotenvy::dotenv;
 
 use config::Config;
 use cli::Cli;
-
-fn fetch(client: &Client, url: &str) -> Result<String, Box<dyn Error>> {
-    let response = client.get(url).send()?;
-    let response = response.error_for_status()?;
-
-    Ok(response.text()?)
-}
 
 fn main() -> anyhow::Result<()> {
     let start = Instant::now();
@@ -31,9 +24,8 @@ fn main() -> anyhow::Result<()> {
 
     tracing::info!("Loaded {} suppliers", config.sources.len());
 
-    println!("{:#?}", cli);
-    println!("{:#?}", config);
+    pipeline::run(cli.extract, &config);
 
-    println!("Program took {:?} seconds", start.elapsed());
+    tracing::info!("Program took {:?} seconds", start.elapsed());
     Ok(())
 }

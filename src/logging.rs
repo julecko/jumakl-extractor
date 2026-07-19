@@ -41,7 +41,7 @@ pub fn init(verbose: bool) -> LoggingGuard {
 
     if cfg!(debug_assertions) {
         tracing_subscriber::fmt()
-            .with_timer(ChronoLocal::new("%Y-%m-%d %H:%M:%S".to_string()))
+            .without_time()
             .with_env_filter(level)
             .init();
 
