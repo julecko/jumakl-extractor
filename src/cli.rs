@@ -1,3 +1,5 @@
+use std::path::{PathBuf};
+
 use clap::{Parser, ValueEnum};
 
 /// Extract and compare product data from supplier feeds
@@ -17,7 +19,7 @@ pub struct Cli {
     /// config/stock.toml for stock, config/price.toml for price,
     /// config/sources.toml if --extract is omitted.
     #[arg(short, long)]
-    pub config: Option<String>,
+    pub config: Option<PathBuf>,
 
     /// Print extra logging
     #[arg(short, long)]
@@ -31,14 +33,16 @@ pub enum ExtractKind {
 }
 
 impl Cli {
-    pub fn config_path(&self) -> String {
+    pub fn config_path(&self) -> PathBuf {
         if let Some(path) = &self.config {
             return path.clone();
         }
 
         match self.extract {
-            ExtractKind::Stock => "config/sources.stock.toml".to_string(),
-            ExtractKind::Price => "config/sources.price.toml".to_string(),
+            ExtractKind::Stock => PathBuf::from("config")
+                .join("sources.stock.toml"),
+            ExtractKind::Price => PathBuf::from("config")
+                .join("sources.price.toml"),
         }
     }
 }
