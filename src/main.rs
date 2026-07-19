@@ -1,6 +1,8 @@
-use std::error::Error;
+mod config;
 
+use std::error::Error;
 use reqwest::blocking::Client;
+use config::Config;
 
 fn fetch(client: &Client, url: &str) -> Result<String, Box<dyn Error>> {
     let response = client.get(url).send()?;
@@ -9,17 +11,35 @@ fn fetch(client: &Client, url: &str) -> Result<String, Box<dyn Error>> {
     Ok(response.text()?)
 }
 
-fn main() {
-    let client = Client::new();
-    let url: &str = "https://www.auto-max.sk/media/export/produkty_sk.xml";
-    match fetch(&client, url) {
-        Ok(body) => {
-            println!("Success {}", url);
-            println!("{}", body);
+fn main() -> anyhow::Result<()> {
+    let config = Config::load("config/sources.stock.toml")?;
+
+    println!("{:#?}", config);
+
+    for source in &config.sources {
+        println!("\n--- Source: {} ---", source.name);
+        println!("URL: {}", source.url);
+
+        match &source.format_config {
+            config::FormatConfig::Xml(xml) => {
+                println!("Format: XML (record_tag = {})", xml.xml.record_tag);
+            }
+            config::FormatConfig::Csv(csv) => {
+                println!(
+                    "Format: CSV (delimiter = {:?}, has_header = {})",
+                    csv.csv.delimiter, csv.csv.has_header
+                );
+            }
         }
 
-        Err(err) => {
-            eprint!("Failed to fetch {}: {}", url, err);
+        println!("Fields:");
+        for (field_name, mapping) in &source.fields {
+            println!(
+                "  {} <- selector \"{}\" ({:?})",
+                field_name, mapping.selector, mapping.r#type
+            );
         }
     }
+
+    Ok(())
 }

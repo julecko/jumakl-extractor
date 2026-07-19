@@ -1,0 +1,25 @@
+[[sources]]
+name = "automax"
+url = "https://www.example.com/export/products.xml"
+format = "xml"
+
+[sources.xml]
+record_tag = "Produkt"
+
+[sources.fields]
+ean = { selector = "EAN" }
+stock = { selector = "Sklad", type = "integer" }
+name = { selector = "Nazov" }
+
+[[sources]]
+name = "supplier_csv"
+url = "https://supplier.example.com/export.csv"
+format = "csv"
+
+[sources.csv]
+delimiter = ","
+has_header = true
+
+[sources.fields]
+ean = { selector = "EAN_CODE" }
+stock = { selector = "Stock", type = "integer" }
