@@ -6,6 +6,7 @@ use std::error::Error;
 use reqwest::blocking::Client;
 
 use clap::Parser;
+use dotenvy::dotenv;
 
 use config::Config;
 use cli::Cli;
@@ -19,8 +20,10 @@ fn fetch(client: &Client, url: &str) -> Result<String, Box<dyn Error>> {
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    dotenv().ok();
     let _guard = logging::init(cli.verbose);
     let config = Config::load(cli.config_path())?;
+    tracing::info!("Loaded {} suppliers", config.sources.len());
 
     println!("{:#?}", cli);
     println!("{:#?}", config);
