@@ -1,8 +1,11 @@
-use tracing_appender::non_blocking::WorkerGuard;
 use std::time::{Duration, SystemTime};
+use std::{env, path::Path};
+use tracing_appender::non_blocking::WorkerGuard;
 
 /// Must be kept alive for the whole program - dropping it stops file writes.
-pub struct LoggingGuard(Option<WorkerGuard>);
+pub struct LoggingGuard{
+    _guard: Option<WorkerGuard>
+}
 
 fn cleanup_old_logs(dir: &str, max_age_days: u64) {
     let max_age = Duration::from_secs(max_age_days * 24 * 60 * 60);
@@ -13,7 +16,7 @@ fn cleanup_old_logs(dir: &str, max_age_days: u64) {
         Err(_) => return,
     };
 
-    for entry in entries.flatten() {    
+    for entry in entries.flatten() {
         let path = entry.path();
         if !path.is_file() {
             continue;
@@ -36,14 +39,26 @@ pub fn init(verbose: bool) -> LoggingGuard {
     let level = if verbose { "debug" } else { "info" };
 
     if cfg!(debug_assertions) {
-        tracing_subscriber::fmt()
-            .with_env_filter(level)
-            .init();
+        tracing_subscriber::fmt().with_env_filter(level).init();
 
-        LoggingGuard(None)
+        LoggingGuard{ _guard: None }
     } else {
-        cleanup_old_logs("logs", 10);
-        let file_appender = tracing_appender::rolling::daily("logs", "data_extractor");
+        let logs_dir: String = env::var("LOGGING_DIR").ok().unwrap_or("logs".to_string());
+        let days_to_keep: u64 = env::var("LOGGING_DAYS_TO_KEEP")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(10);
+
+        cleanup_old_logs(&logs_dir, days_to_keep);
+
+        let exe = env::args().next().unwrap();
+        let executable_name = Path::new(&exe)
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
+
+        let file_appender = tracing_appender::rolling::daily(logs_dir, executable_name);
         let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
         tracing_subscriber::fmt()
@@ -52,6 +67,6 @@ pub fn init(verbose: bool) -> LoggingGuard {
             .with_ansi(false)
             .init();
 
-        LoggingGuard(Some(guard))
+        LoggingGuard{ _guard: Some(guard) }
     }
 }
