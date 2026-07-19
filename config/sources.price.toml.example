@@ -1,0 +1,9 @@
+[[sources]]
+name = "Some firm"
+url = "https://www.example.com/export/products.xml"
+format = "xml"
+record_tag = "Produkt"
+
+[sources.fields]
+catalog_id = { tag = "Katalog" }
+stock = { tag = "Sklad", type = "integer" }
