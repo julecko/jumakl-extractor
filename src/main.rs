@@ -1,5 +1,6 @@
 mod config;
 mod cli;
+mod logging;
 
 use std::error::Error;
 use reqwest::blocking::Client;
@@ -18,6 +19,7 @@ fn fetch(client: &Client, url: &str) -> Result<String, Box<dyn Error>> {
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    let _guard = logging::init(cli.verbose);
     let config = Config::load(cli.config_path())?;
 
     println!("{:#?}", cli);
