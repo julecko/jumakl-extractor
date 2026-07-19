@@ -1,10 +1,11 @@
 use std::time::{Duration, SystemTime};
 use std::{env, path::Path};
 use tracing_appender::non_blocking::WorkerGuard;
+use tracing_subscriber::fmt::time::ChronoLocal;
 
 /// Must be kept alive for the whole program - dropping it stops file writes.
-pub struct LoggingGuard{
-    _guard: Option<WorkerGuard>
+pub struct LoggingGuard {
+    _guard: Option<WorkerGuard>,
 }
 
 fn cleanup_old_logs(dir: &str, max_age_days: u64) {
@@ -39,9 +40,12 @@ pub fn init(verbose: bool) -> LoggingGuard {
     let level = if verbose { "debug" } else { "info" };
 
     if cfg!(debug_assertions) {
-        tracing_subscriber::fmt().with_env_filter(level).init();
+        tracing_subscriber::fmt()
+            .with_timer(ChronoLocal::new("%Y-%m-%d %H:%M:%S".to_string()))
+            .with_env_filter(level)
+            .init();
 
-        LoggingGuard{ _guard: None }
+        LoggingGuard { _guard: None }
     } else {
         let logs_dir: String = env::var("LOGGING_DIR").ok().unwrap_or("logs".to_string());
         let days_to_keep: u64 = env::var("LOGGING_DAYS_TO_KEEP")
@@ -62,11 +66,14 @@ pub fn init(verbose: bool) -> LoggingGuard {
         let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
         tracing_subscriber::fmt()
+            .with_timer(ChronoLocal::new("%Y-%m-%d %H:%M:%S".to_string()))
             .with_env_filter(level)
             .with_writer(non_blocking)
             .with_ansi(false)
             .init();
 
-        LoggingGuard{ _guard: Some(guard) }
+        LoggingGuard {
+            _guard: Some(guard),
+        }
     }
 }
