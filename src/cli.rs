@@ -1,7 +1,7 @@
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
-use clap::{Parser, ValueEnum};
 use crate::helpers::config_folder_path;
+use clap::{Parser, ValueEnum};
 
 /// Extract and compare product data from supplier feeds
 #[derive(Parser, Debug)]
@@ -40,10 +40,8 @@ impl Cli {
         }
 
         match self.extract {
-            ExtractKind::Stock => config_folder_path()
-                .join("sources.stock.toml"),
-            ExtractKind::Price => config_folder_path()
-                .join("sources.price.toml"),
+            ExtractKind::Stock => config_folder_path().join("sources.stock.toml"),
+            ExtractKind::Price => config_folder_path().join("sources.price.toml"),
         }
     }
 }
