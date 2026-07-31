@@ -11,16 +11,23 @@ use crate::webrequest;
 
 /// One implementor per extract kind (stock.rs, price.rs, ...). Handler code
 /// only ever sees the generic Record shape - it never knows the source format.
+///
+/// `on_record` is called once per record as the parser produces it (analyze /
+/// accumulate whatever's needed), `finish` is called once after a source's
+/// records are exhausted (write the result for that source). Handlers hold
+/// state between calls, so each source gets its own fresh instance rather
+/// than sharing one - see `new_handler`.
 pub trait Handler {
-    fn handle(&self, source_name: &str, records: Vec<Record>) -> Result<()>;
+    fn on_record(&mut self, record: Record) -> Result<()>;
+    fn finish(&mut self, source_name: &str) -> Result<()>;
 }
 
-// Only place that matches on kind: picks which impl's vtable to hand back.
-// Everything downstream calls the trait method, never this enum.
-fn handler_for(kind: ExtractKind) -> &'static dyn Handler {
+// Only place that matches on kind: picks which concrete type to box up.
+// Everything downstream calls the trait methods, never this enum.
+fn new_handler(kind: ExtractKind) -> Box<dyn Handler> {
     match kind {
-        ExtractKind::Stock => &stock::StockHandler,
-        ExtractKind::Price => &price::PriceHandler,
+        ExtractKind::Stock => Box::new(stock::StockHandler::default()),
+        ExtractKind::Price => Box::new(price::PriceHandler::default()),
     }
 }
 
@@ -28,10 +35,9 @@ pub fn run(kind: ExtractKind, config: &Config) {
     tracing::debug!("Starting extraction");
 
     let client = Client::new();
-    let handler = handler_for(kind);
 
     for source in &config.sources {
-        if let Err(err) = run_source(handler, &client, source) {
+        if let Err(err) = run_source(kind, &client, source) {
             tracing::error!("source {} failed: {err:#}", source.name);
         }
     }
@@ -40,9 +46,12 @@ pub fn run(kind: ExtractKind, config: &Config) {
 }
 
 // No match here at all: format was resolved inside parse_source, kind was
-// resolved by the caller. Neither axis nests inside the other.
-fn run_source(handler: &dyn Handler, client: &Client, source: &SourceConfig) -> Result<()> {
+// resolved by new_handler. Neither axis nests inside the other.
+fn run_source(kind: ExtractKind, client: &Client, source: &SourceConfig) -> Result<()> {
     let content = webrequest::fetch(client, &source.url)?;
-    let records = sources::parse_source(&content, source)?;
-    handler.handle(&source.name, records)
+    let mut handler = new_handler(kind);
+
+    sources::parse_source(&content, source, &mut |record| handler.on_record(record))?;
+
+    handler.finish(&source.name)
 }

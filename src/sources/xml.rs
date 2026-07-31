@@ -9,7 +9,12 @@ impl FormatParser for XmlConfig {
         &self,
         _content: &str,
         _fields: &HashMap<String, FieldMapping>,
-    ) -> Result<Vec<Record>> {
-        todo!("walk self.xml.record_tag elements, map child tags to fields via mapping.selector")
+        _on_record: &mut dyn FnMut(Record) -> Result<()>,
+    ) -> Result<()> {
+        todo!(
+            "walk self.xml.record_tag elements, map child tags to fields via \
+             mapping.selector, call on_record(record) at each closing record_tag \
+             instead of collecting"
+        )
     }
 }
