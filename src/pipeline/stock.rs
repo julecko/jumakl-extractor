@@ -13,12 +13,12 @@ pub struct StockHandler {
 impl Handler for StockHandler {
     fn on_record(&mut self, record: Record) -> Result<()> {
         self.record_count += 1;
-        info!("{:?}", record);
+        debug!("{:?}", record);
         Ok(())
     }
 
     fn finish(&mut self, source_name: &str) -> Result<()> {
-        debug!("{source_name}: processed {} records", self.record_count);
+        info!("{source_name}: processed {} records", self.record_count);
         Ok(())
     }
 }
