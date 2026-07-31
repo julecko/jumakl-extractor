@@ -37,7 +37,11 @@ fn cleanup_old_logs(dir: &str, max_age_days: u64) {
 }
 
 pub fn init(verbose: bool) -> LoggingGuard {
-    let level = if verbose { "debug" } else { "info" };
+    let level = if verbose {
+        "info,jumakl_extractor=debug"
+    } else {
+        "info"
+    };
 
     if cfg!(debug_assertions) {
         tracing_subscriber::fmt()
