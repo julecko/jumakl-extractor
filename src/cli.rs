@@ -33,6 +33,16 @@ pub enum ExtractKind {
     Price,
 }
 
+impl ExtractKind {
+    /// The config `fields` key this kind requires alongside "ean".
+    pub fn value_field(&self) -> &'static str {
+        match self {
+            ExtractKind::Stock => "stock",
+            ExtractKind::Price => "price",
+        }
+    }
+}
+
 impl Cli {
     pub fn modes(&self) -> Vec<ExtractKind> {
         match self.extract {

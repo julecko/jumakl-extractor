@@ -105,10 +105,7 @@ impl Config {
     fn validate(&self, kind: ExtractKind) -> Result<()> {
         // "ean" is always required; which of "price"/"stock" is required
         // depends on which mode this config file is being loaded for.
-        let kind_field = match kind {
-            ExtractKind::Stock => "stock",
-            ExtractKind::Price => "price",
-        };
+        let kind_field = kind.value_field();
 
         for source in &self.sources {
             if !source.fields.contains_key("ean") {
