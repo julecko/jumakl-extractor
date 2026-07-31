@@ -1,10 +1,10 @@
 mod csv;
 mod xml;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 
-use crate::config::{FieldMapping, SourceConfig};
+use crate::config::{FieldMapping, FieldType, SourceConfig};
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -14,7 +14,17 @@ pub enum Value {
     Date(String),
 }
 
-pub type Record = HashMap<String, Value>;
+#[derive(Debug, Clone)]
+pub struct Record {
+    pub ean: String,
+    pub value: RecordValue,
+}
+
+#[derive(Debug, Clone)]
+pub enum RecordValue {
+    Stock(i64),
+    Price(f64),
+}
 
 /// One implementor per file format (csv.rs, xml.rs, ...). Format code only
 /// ever produces the generic Record shape - it never knows about stock/price.
@@ -40,4 +50,51 @@ pub fn parse_source(
         .format_config
         .parser()
         .parse(content, &source.fields, on_record)
+}
+
+/// Shared by every FormatParser impl: turns a raw selector match into the
+/// typed Value the rest of the pipeline works with.
+pub(crate) fn coerce(raw: &str, field_type: FieldType) -> Result<Value> {
+    let raw = raw.trim();
+    Ok(match field_type {
+        FieldType::String => Value::String(raw.to_string()),
+        FieldType::Integer => Value::Integer(raw.parse()?),
+        FieldType::Decimal => Value::Decimal(raw.parse()?),
+        FieldType::Date => Value::Date(raw.to_string()),
+    })
+}
+
+impl Value {
+    /// "ean" is always treated as a plain string regardless of configured type.
+    pub(crate) fn into_string(self) -> String {
+        match self {
+            Value::String(s) | Value::Date(s) => s,
+            Value::Integer(n) => n.to_string(),
+            Value::Decimal(f) => f.to_string(),
+        }
+    }
+
+    /// For "stock" - the config may declare it integer or decimal, RecordValue always wants i64.
+    pub(crate) fn into_i64(self) -> Result<i64> {
+        match self {
+            Value::Integer(n) => Ok(n),
+            Value::Decimal(f) => Ok(f as i64),
+            Value::String(s) | Value::Date(s) => s
+                .trim()
+                .parse()
+                .with_context(|| format!("'{s}' is not an integer")),
+        }
+    }
+
+    /// For "price" - the config may declare it integer or decimal, RecordValue always wants f64.
+    pub(crate) fn into_f64(self) -> Result<f64> {
+        match self {
+            Value::Decimal(f) => Ok(f),
+            Value::Integer(n) => Ok(n as f64),
+            Value::String(s) | Value::Date(s) => s
+                .trim()
+                .parse()
+                .with_context(|| format!("'{s}' is not a decimal")),
+        }
+    }
 }
