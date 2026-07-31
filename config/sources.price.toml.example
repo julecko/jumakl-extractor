@@ -11,6 +11,7 @@ ean = { selector = "EAN" }
 price = { selector = "Price", type = "integer" }
 name = { selector = "Name" }
 
+
 [[sources]]
 name = "supplier_csv"
 url = "https://supplier.example.com/export.csv"
