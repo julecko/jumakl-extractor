@@ -62,7 +62,7 @@ fn run_source(
     source: &SourceConfig,
     writer: &mut dyn OutputWriter,
 ) -> Result<()> {
-    let content = webrequest::fetch(client, &source.url)?;
+    let content = webrequest::fetch(client, &source.url, source.auth.as_ref())?;
 
     let mut handler = new_handler(kind);
 
