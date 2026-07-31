@@ -23,7 +23,7 @@ fn main() -> anyhow::Result<()> {
     let _guard = logging::init(cli.verbose);
 
     for mode in cli.modes() {
-        let config = Config::load(cli.config_path(mode))?;
+        let config = Config::load(cli.config_path(mode), mode)?;
         tracing::info!("Loaded {} suppliers for {:?}", config.sources.len(), mode);
         pipeline::run(mode, &config);
     }

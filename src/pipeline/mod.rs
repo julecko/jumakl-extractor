@@ -1,7 +1,9 @@
 mod price;
 mod stock;
 
-use anyhow::Result;
+use std::println;
+
+use anyhow::{Ok, Result};
 use reqwest::blocking::Client;
 
 use crate::cli::ExtractKind;
@@ -49,6 +51,7 @@ pub fn run(kind: ExtractKind, config: &Config) {
 // resolved by new_handler. Neither axis nests inside the other.
 fn run_source(kind: ExtractKind, client: &Client, source: &SourceConfig) -> Result<()> {
     let content = webrequest::fetch(client, &source.url)?;
+
     let mut handler = new_handler(kind);
 
     sources::parse_source(&content, source, &mut |record| handler.on_record(record))?;

@@ -14,6 +14,7 @@ impl FormatParser for CsvConfig {
         todo!(
             "split content on self.csv.delimiter, map columns to fields via \
              mapping.selector, call on_record(record) per line instead of collecting"
-        )
+        );
+        return Ok(());
     }
 }
