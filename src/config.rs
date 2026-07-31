@@ -17,10 +17,18 @@ pub struct SourceConfig {
     pub shortname: String,
     pub prefix: String,
     pub url: String,
+
+    pub auth: Option<AuthConfig>,
     pub fields: HashMap<String, FieldMapping>,
 
     #[serde(flatten)]
     pub format_config: FormatConfig,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AuthConfig {
+    pub username: String,
+    pub password: String,
 }
 
 #[derive(Debug, Deserialize)]
