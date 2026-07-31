@@ -1,11 +1,12 @@
 mod price;
 mod stock;
 
-use anyhow::{Ok, Result};
+use anyhow::Result;
 use reqwest::blocking::Client;
 
 use crate::cli::ExtractKind;
 use crate::config::{Config, SourceConfig};
+use crate::output::{self, OutputWriter};
 use crate::sources::{self, Record};
 use crate::webrequest;
 
@@ -36,8 +37,16 @@ pub fn run(kind: ExtractKind, config: &Config) {
 
     let client = Client::new();
 
+    let mut writer = match output::create_writer(kind) {
+        Ok(writer) => writer,
+        Err(err) => {
+            tracing::error!("failed to open output file: {err:#}");
+            return;
+        }
+    };
+
     for source in &config.sources {
-        if let Err(err) = run_source(kind, &client, source) {
+        if let Err(err) = run_source(kind, &client, source, writer.as_mut()) {
             tracing::error!("source {} failed: {err:#}", source.name);
         }
     }
@@ -47,12 +56,20 @@ pub fn run(kind: ExtractKind, config: &Config) {
 
 // No match here at all: format was resolved inside parse_source, kind was
 // resolved by new_handler. Neither axis nests inside the other.
-fn run_source(kind: ExtractKind, client: &Client, source: &SourceConfig) -> Result<()> {
+fn run_source(
+    kind: ExtractKind,
+    client: &Client,
+    source: &SourceConfig,
+    writer: &mut dyn OutputWriter,
+) -> Result<()> {
     let content = webrequest::fetch(client, &source.url)?;
 
     let mut handler = new_handler(kind);
 
-    sources::parse_source(&content, source, &mut |record| handler.on_record(record))?;
+    sources::parse_source(&content, source, &mut |record| {
+        writer.write_record(&record)?;
+        handler.on_record(record)
+    })?;
 
     handler.finish(&source.name)
 }

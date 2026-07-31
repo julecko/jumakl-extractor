@@ -1,6 +1,7 @@
 mod cli;
 mod config;
 mod logging;
+mod output;
 mod paths;
 mod pipeline;
 mod sources;
