@@ -1,7 +1,8 @@
 use anyhow::Result;
 use tracing::debug;
 
-use super::Handler;
+use super::{Handler, SourceReport};
+use crate::output::WriteRow;
 use crate::sources::Record;
 
 #[derive(Default)]
@@ -11,13 +12,16 @@ pub struct PriceHandler {
 }
 
 impl Handler for PriceHandler {
-    fn on_record(&mut self, _record: Record) -> Result<()> {
+    fn on_record(&mut self, _record: &Record) -> Result<Option<WriteRow>> {
         self.record_count += 1;
-        todo!("pull sku/price out of record, compare against own logic, fold mismatches into self")
+        todo!(
+            "pull price out of record, compare against own logic, fold mismatches into self, \
+             derive buy/sell/fix and return Ok(Some(WriteRow::Price {{ buy, sell, fix }}))"
+        )
     }
 
-    fn finish(&mut self, source_name: &str) -> Result<()> {
+    fn finish(&mut self, source_name: &str) -> SourceReport {
         debug!("{source_name}: processed {} records", self.record_count);
-        todo!("build report from accumulated price state, write result for source_name")
+        todo!("build report from accumulated price state (e.g. mismatches into errors), return it")
     }
 }

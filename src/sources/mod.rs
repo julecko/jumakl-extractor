@@ -26,6 +26,22 @@ pub enum RecordValue {
     Price(f64),
 }
 
+impl RecordValue {
+    pub fn as_stock(&self) -> Option<i64> {
+        match self {
+            RecordValue::Stock(n) => Some(*n),
+            RecordValue::Price(_) => None,
+        }
+    }
+
+    pub fn as_price(&self) -> Option<f64> {
+        match self {
+            RecordValue::Price(p) => Some(*p),
+            RecordValue::Stock(_) => None,
+        }
+    }
+}
+
 /// One implementor per file format (csv.rs, xml.rs, ...). Format code only
 /// ever produces the generic Record shape - it never knows about stock/price.
 ///
