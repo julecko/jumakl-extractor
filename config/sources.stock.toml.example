@@ -8,8 +8,9 @@ record_tag = "Produkt"
 
 [sources.fields]
 ean = { selector = "EAN" }
-stock = { selector = "Sklad", type = "integer" }
-name = { selector = "Nazov" }
+stock = { selector = "Stock", type = "integer" }
+name = { selector = "Name" }
+
 
 [[sources]]
 name = "supplier_csv"
