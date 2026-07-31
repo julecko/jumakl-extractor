@@ -69,8 +69,15 @@ fn run_source(
     let shortname = source.shortname.as_str();
     let prefix = source.prefix.as_str();
     sources::parse_source(&content, source, &mut |record| {
-        writer.write_record(&record, shortname, prefix)?;
-        handler.on_record(record)
+        if let Err(err) = writer.write_record(&record, shortname, prefix) {
+            tracing::warn!("failed to write record (ean={}): {err:#}", record.ean);
+        }
+
+        if let Err(err) = handler.on_record(record) {
+            tracing::warn!("failed to handle record: {err:#}");
+        }
+
+        Ok(())
     })?;
 
     handler.finish(&source.name)
