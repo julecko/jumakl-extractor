@@ -43,23 +43,19 @@ impl FormatParser for XmlConfig {
                         continue;
                     }
 
-                    let field = fields
-                        .iter()
-                        .find(|(_, mapping)| mapping.selector.as_bytes() == current_tag.as_slice());
-                    let Some((field_name, mapping)) = field else {
-                        continue;
-                    };
-
                     let decoded = e.decode().context("invalid xml text encoding")?;
                     let text = unescape(&decoded).context("invalid xml entity")?;
-                    let coerced = coerce(&text, mapping.r#type)?;
+                    apply_field(&text, &current_tag, fields, &mut ean, &mut value)?;
+                }
 
-                    match field_name.as_str() {
-                        "ean" => ean = Some(coerced.into_string()),
-                        "stock" => value = Some(RecordValue::Stock(coerced.into_i64()?)),
-                        "price" => value = Some(RecordValue::Price(coerced.into_f64()?)),
-                        _ => {}
+                Event::CData(e) => {
+                    if !in_record {
+                        continue;
                     }
+
+                    // CDATA is raw by definition - no entity unescaping, unlike Text.
+                    let text = e.decode().context("invalid xml cdata encoding")?;
+                    apply_field(&text, &current_tag, fields, &mut ean, &mut value)?;
                 }
 
                 Event::End(e) => {
@@ -81,4 +77,32 @@ impl FormatParser for XmlConfig {
 
         Ok(())
     }
+}
+
+/// Shared by both Event::Text and Event::CData: look up which configured
+/// field the current tag maps to, coerce the decoded text, and store it.
+fn apply_field(
+    text: &str,
+    current_tag: &[u8],
+    fields: &HashMap<String, FieldMapping>,
+    ean: &mut Option<String>,
+    value: &mut Option<RecordValue>,
+) -> Result<()> {
+    let field = fields
+        .iter()
+        .find(|(_, mapping)| mapping.selector.as_bytes() == current_tag);
+    let Some((field_name, mapping)) = field else {
+        return Ok(());
+    };
+
+    let coerced = coerce(text, mapping.r#type)?;
+
+    match field_name.as_str() {
+        "ean" => *ean = Some(coerced.into_string()),
+        "stock" => *value = Some(RecordValue::Stock(coerced.into_i64()?)),
+        "price" => *value = Some(RecordValue::Price(coerced.into_f64()?)),
+        _ => {}
+    }
+
+    Ok(())
 }
