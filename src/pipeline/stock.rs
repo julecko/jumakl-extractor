@@ -1,7 +1,8 @@
 use anyhow::Result;
 use tracing::{debug, info};
 
-use super::Handler;
+use super::{Handler, SourceReport};
+use crate::output::WriteRow;
 use crate::sources::Record;
 
 #[derive(Default)]
@@ -11,14 +12,23 @@ pub struct StockHandler {
 }
 
 impl Handler for StockHandler {
-    fn on_record(&mut self, record: Record) -> Result<()> {
+    fn on_record(&mut self, record: &Record) -> Result<Option<WriteRow>> {
         self.record_count += 1;
         debug!("{:?}", record);
-        Ok(())
+
+        let Some(n) = record.value.as_stock() else {
+            anyhow::bail!("StockHandler received a non-stock record");
+        };
+
+        Ok(Some(WriteRow::Stock { n }))
     }
 
-    fn finish(&mut self, source_name: &str) -> Result<()> {
+    fn finish(&mut self, source_name: &str) -> SourceReport {
         info!("{source_name}: processed {} records", self.record_count);
-        Ok(())
+        SourceReport {
+            supplier: source_name.to_string(),
+            records: self.record_count,
+            errors: Vec::new(),
+        }
     }
 }

@@ -3,9 +3,8 @@ use chrono::Local;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
-use super::OutputWriter;
+use super::{OutputWriter, WriteRow};
 use crate::paths::output_folder_path;
-use crate::sources::{Record, RecordValue};
 
 fn create_file(filename: &str) -> Result<BufWriter<File>> {
     let path = output_folder_path().join(filename);
@@ -37,17 +36,23 @@ impl StockCsvWriter {
 }
 
 impl OutputWriter for StockCsvWriter {
-    fn write_record(&mut self, record: &Record, shortname: &str, prefix: &str) -> Result<()> {
-        // Only ever constructed for ExtractKind::Stock, so record.value is
+    fn write_record(
+        &mut self,
+        ean: &str,
+        row: &WriteRow,
+        shortname: &str,
+        prefix: &str,
+    ) -> Result<()> {
+        // Only ever constructed for ExtractKind::Stock, so row is
         // always the Stock variant - nothing to branch on here.
-        let RecordValue::Stock(n) = record.value else {
-            anyhow::bail!("StockCsvWriter received a non-stock record");
+        let WriteRow::Stock { n } = row else {
+            anyhow::bail!("StockCsvWriter received a non-stock row");
         };
 
         writeln!(
             self.file,
             "{};{} - {};{n};{}",
-            shortname, prefix, record.ean, self.date
+            shortname, prefix, ean, self.date
         )?;
         Ok(())
     }
@@ -71,14 +76,20 @@ impl PriceCsvWriter {
 }
 
 impl OutputWriter for PriceCsvWriter {
-    fn write_record(&mut self, record: &Record, _shortname: &str, _prefix: &str) -> Result<()> {
-        // Only ever constructed for ExtractKind::Price, so record.value is
+    fn write_record(
+        &mut self,
+        ean: &str,
+        row: &WriteRow,
+        _shortname: &str,
+        _prefix: &str,
+    ) -> Result<()> {
+        // Only ever constructed for ExtractKind::Price, so row is
         // always the Price variant - nothing to branch on here.
-        let RecordValue::Price(_p) = record.value else {
-            anyhow::bail!("PriceCsvWriter received a non-price record")
+        let WriteRow::Price { buy, sell, fix } = row else {
+            anyhow::bail!("PriceCsvWriter received a non-price row");
         };
 
-        todo!("price row needs BUY_PRICE/SELL_PRICE/FIX_PRICE, not just one value");
+        writeln!(self.file, "{ean};{buy};{sell};{fix}")?;
         Ok(())
     }
 }
