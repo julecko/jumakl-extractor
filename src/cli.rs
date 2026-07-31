@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::helpers::config_folder_path;
+use crate::paths::config_folder_path;
 use clap::{Parser, ValueEnum};
 
 /// Extract and compare product data from supplier feeds
@@ -9,7 +9,7 @@ use clap::{Parser, ValueEnum};
 pub struct Cli {
     /// What kind of data to extract. If omitted, extracts everything.
     #[arg(long, value_enum)]
-    pub extract: ExtractKind,
+    pub extract: Option<ExtractKind>,
 
     /// Only run these specific sources, comma-separated (e.g. automax,supplier_b).
     /// If omitted, all sources in the config are run.
@@ -34,14 +34,22 @@ pub enum ExtractKind {
 }
 
 impl Cli {
-    pub fn config_path(&self) -> PathBuf {
-        if let Some(path) = &self.config {
-            return path.clone();
-        }
-
+    pub fn modes(&self) -> Vec<ExtractKind> {
         match self.extract {
+            Some(kind) => vec![kind],
+            None => vec![ExtractKind::Stock, ExtractKind::Price],
+        }
+    }
+    pub fn config_path(&self, kind: ExtractKind) -> PathBuf {
+        let default = match kind {
             ExtractKind::Stock => config_folder_path().join("sources.stock.toml"),
             ExtractKind::Price => config_folder_path().join("sources.price.toml"),
+        };
+
+        if self.extract.is_none() {
+            return default;
         }
+
+        self.config.clone().unwrap_or(default)
     }
 }

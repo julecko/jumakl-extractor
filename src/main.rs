@@ -1,7 +1,7 @@
 mod cli;
 mod config;
-mod helpers;
 mod logging;
+mod paths;
 mod pipeline;
 mod webrequest;
 
@@ -20,11 +20,12 @@ fn main() -> anyhow::Result<()> {
     dotenv().ok();
 
     let _guard = logging::init(cli.verbose);
-    let config = Config::load(cli.config_path())?;
 
-    tracing::info!("Loaded {} suppliers", config.sources.len());
-
-    pipeline::run(cli.extract, &config);
+    for mode in cli.modes() {
+        let config = Config::load(cli.config_path(mode))?;
+        tracing::info!("Loaded {} suppliers for {:?}", config.sources.len(), mode);
+        pipeline::run(mode, &config);
+    }
 
     tracing::info!("Program took {:?} seconds", start.elapsed());
     Ok(())
