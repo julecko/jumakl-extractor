@@ -26,6 +26,17 @@ pub enum FormatConfig {
     Csv(CsvConfig),
 }
 
+impl FormatConfig {
+    // Only place that matches on format: picks which impl's vtable to hand
+    // back. Everything downstream calls the trait method, never this enum.
+    pub fn parser(&self) -> &dyn crate::sources::FormatParser {
+        match self {
+            FormatConfig::Xml(cfg) => cfg,
+            FormatConfig::Csv(cfg) => cfg,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct XmlConfig {
     pub xml: XmlOptions,

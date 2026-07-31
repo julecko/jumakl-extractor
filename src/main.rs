@@ -3,6 +3,7 @@ mod config;
 mod logging;
 mod paths;
 mod pipeline;
+mod sources;
 mod webrequest;
 
 use std::time::Instant;
