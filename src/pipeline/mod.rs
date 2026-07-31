@@ -66,8 +66,10 @@ fn run_source(
 
     let mut handler = new_handler(kind);
 
+    let shortname = source.shortname.as_str();
+    let prefix = source.prefix.as_str();
     sources::parse_source(&content, source, &mut |record| {
-        writer.write_record(&record)?;
+        writer.write_record(&record, shortname, prefix)?;
         handler.on_record(record)
     })?;
 

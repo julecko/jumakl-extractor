@@ -15,3 +15,7 @@ fn app_dir() -> PathBuf {
 pub fn config_folder_path() -> PathBuf {
     app_dir().join("config")
 }
+
+pub fn output_folder_path() -> PathBuf {
+    app_dir().join("output")
+}

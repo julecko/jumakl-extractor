@@ -14,6 +14,8 @@ pub struct Config {
 #[derive(Debug, Deserialize)]
 pub struct SourceConfig {
     pub name: String,
+    pub shortname: String,
+    pub prefix: String,
     pub url: String,
     pub fields: HashMap<String, FieldMapping>,
 

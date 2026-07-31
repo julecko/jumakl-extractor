@@ -8,7 +8,7 @@ use crate::sources::Record;
 /// One implementor per output format (csv.rs, ...). Nothing outside this
 /// module knows or cares which format is behind the trait object.
 pub trait OutputWriter {
-    fn write_record(&mut self, record: &Record) -> Result<()>;
+    fn write_record(&mut self, record: &Record, shortname: &str, prefix: &str) -> Result<()>;
 }
 
 // Only place that matches on kind for naming, and only place that picks a
