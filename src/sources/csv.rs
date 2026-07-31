@@ -9,7 +9,11 @@ impl FormatParser for CsvConfig {
         &self,
         _content: &str,
         _fields: &HashMap<String, FieldMapping>,
-    ) -> Result<Vec<Record>> {
-        todo!("split content on self.csv.delimiter, map columns to fields via mapping.selector")
+        _on_record: &mut dyn FnMut(Record) -> Result<()>,
+    ) -> Result<()> {
+        todo!(
+            "split content on self.csv.delimiter, map columns to fields via \
+             mapping.selector, call on_record(record) per line instead of collecting"
+        )
     }
 }
