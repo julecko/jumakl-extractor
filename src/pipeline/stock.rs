@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tracing::debug;
+use tracing::{debug, info};
 
 use super::Handler;
 use crate::sources::Record;
@@ -11,13 +11,14 @@ pub struct StockHandler {
 }
 
 impl Handler for StockHandler {
-    fn on_record(&mut self, _record: Record) -> Result<()> {
+    fn on_record(&mut self, record: Record) -> Result<()> {
         self.record_count += 1;
-        todo!("pull sku/quantity out of record, fold into self's accumulated state")
+        info!("{:?}", record);
+        Ok(())
     }
 
     fn finish(&mut self, source_name: &str) -> Result<()> {
         debug!("{source_name}: processed {} records", self.record_count);
-        todo!("analyze accumulated stock state, write result for source_name")
+        Ok(())
     }
 }

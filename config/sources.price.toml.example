@@ -8,7 +8,7 @@ record_tag = "Produkt"
 
 [sources.fields]
 ean = { selector = "EAN" }
-price = { selector = "Price", type = "integer" }
+price = { selector = "Price", type = "decimal" }
 name = { selector = "Name" }
 
 
@@ -23,4 +23,4 @@ has_header = true
 
 [sources.fields]
 ean = { selector = "EAN_CODE" }
-price = { selector = "Stock", type = "integer" }
+price = { selector = "Price", type = "decimal" }

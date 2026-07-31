@@ -1,8 +1,6 @@
 mod price;
 mod stock;
 
-use std::println;
-
 use anyhow::{Ok, Result};
 use reqwest::blocking::Client;
 
