@@ -19,3 +19,7 @@ pub fn config_folder_path() -> PathBuf {
 pub fn output_folder_path() -> PathBuf {
     app_dir().join("output")
 }
+
+pub fn templates_folder_path() -> PathBuf {
+    app_dir().join("templates")
+}
