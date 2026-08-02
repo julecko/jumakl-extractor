@@ -46,7 +46,7 @@ fn new_handler(kind: ExtractKind) -> Box<dyn Handler> {
     }
 }
 
-pub fn run(kind: ExtractKind, config: &Config) {
+pub fn run(kind: ExtractKind, config: &Config) -> Vec<SourceReport> {
     tracing::debug!("Starting extraction");
 
     let client = Client::new();
@@ -55,7 +55,7 @@ pub fn run(kind: ExtractKind, config: &Config) {
         Ok(writer) => writer,
         Err(err) => {
             tracing::error!("failed to open output file: {err:#}");
-            return;
+            return Vec::new();
         }
     };
 
@@ -64,8 +64,6 @@ pub fn run(kind: ExtractKind, config: &Config) {
         reports.push(run_source(kind, &client, source, writer.as_mut()));
     }
 
-    // reports now holds one SourceReport per source, ready to hand to a
-    // future report/email module - see docs/ARCHITECTURE.md.
     for report in &reports {
         if !report.errors.is_empty() {
             tracing::warn!(
@@ -77,7 +75,7 @@ pub fn run(kind: ExtractKind, config: &Config) {
         }
     }
 
-    // Send data to server to store for analytics and also send email with price data which to update
+    reports
 }
 
 // No match here at all: format was resolved inside parse_source, kind was

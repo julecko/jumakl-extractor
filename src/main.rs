@@ -4,6 +4,7 @@ mod logging;
 mod output;
 mod paths;
 mod pipeline;
+mod report;
 mod sources;
 mod webrequest;
 
@@ -23,12 +24,25 @@ fn main() -> anyhow::Result<()> {
 
     let _guard = logging::init(cli.verbose);
 
+    let mut reports = Vec::new();
     for mode in cli.modes() {
         let config = Config::load(cli.config_path(mode), mode)?;
         tracing::info!("Loaded {} suppliers for {:?}", config.sources.len(), mode);
-        pipeline::run(mode, &config);
+        reports.extend(pipeline::run(mode, &config));
     }
 
-    tracing::info!("Program took {:?} seconds", start.elapsed());
+    let elapsed = start.elapsed();
+    tracing::info!("Program took {elapsed:?}");
+
+    let summary = report::RunSummary { elapsed, reports };
+    match report::create_reporter() {
+        Ok(reporter) => {
+            if let Err(err) = reporter.send(&summary) {
+                tracing::error!("failed to send report email: {err:#}");
+            }
+        }
+        Err(err) => tracing::error!("failed to set up reporter: {err:#}"),
+    }
+
     Ok(())
 }
