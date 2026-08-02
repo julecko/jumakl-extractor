@@ -17,7 +17,7 @@ pub enum WriteRow {
 pub trait OutputWriter {
     fn write_record(
         &mut self,
-        ean: &str,
+        sku: &str,
         row: &WriteRow,
         shortname: &str,
         prefix: &str,

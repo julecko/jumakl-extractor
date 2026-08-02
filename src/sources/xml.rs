@@ -20,7 +20,7 @@ impl FormatParser for XmlConfig {
         let record_tag = self.xml.record_tag.as_bytes();
 
         let mut in_record = false;
-        let mut ean: Option<String> = None;
+        let mut sku: Option<String> = None;
         let mut value: Option<RecordValue> = None;
         let mut current_tag: Vec<u8> = Vec::new();
 
@@ -32,7 +32,7 @@ impl FormatParser for XmlConfig {
                     let tag = e.name().into_inner();
                     if tag == record_tag {
                         in_record = true;
-                        ean = None;
+                        sku = None;
                         value = None;
                     }
                     current_tag = tag.to_vec();
@@ -45,7 +45,7 @@ impl FormatParser for XmlConfig {
 
                     let decoded = e.decode().context("invalid xml text encoding")?;
                     let text = unescape(&decoded).context("invalid xml entity")?;
-                    apply_field(&text, &current_tag, fields, &mut ean, &mut value)?;
+                    apply_field(&text, &current_tag, fields, &mut sku, &mut value)?;
                 }
 
                 Event::CData(e) => {
@@ -55,16 +55,16 @@ impl FormatParser for XmlConfig {
 
                     // CDATA is raw by definition - no entity unescaping, unlike Text.
                     let text = e.decode().context("invalid xml cdata encoding")?;
-                    apply_field(&text, &current_tag, fields, &mut ean, &mut value)?;
+                    apply_field(&text, &current_tag, fields, &mut sku, &mut value)?;
                 }
 
                 Event::End(e) => {
                     if e.name().into_inner() == record_tag {
                         in_record = false;
-                        match (ean.take(), value.take()) {
-                            (Some(ean), Some(value)) => on_record(Record { ean, value })?,
+                        match (sku.take(), value.take()) {
+                            (Some(sku), Some(value)) => on_record(Record { sku, value })?,
                             _ => tracing::warn!(
-                                "skipping <{}> element missing ean and/or value",
+                                "skipping <{}> element missing sku and/or value",
                                 self.xml.record_tag
                             ),
                         }
@@ -85,7 +85,7 @@ fn apply_field(
     text: &str,
     current_tag: &[u8],
     fields: &HashMap<String, FieldMapping>,
-    ean: &mut Option<String>,
+    sku: &mut Option<String>,
     value: &mut Option<RecordValue>,
 ) -> Result<()> {
     let field = fields
@@ -98,7 +98,7 @@ fn apply_field(
     let coerced = coerce(text, mapping.r#type)?;
 
     match field_name.as_str() {
-        "ean" => *ean = Some(coerced.into_string()),
+        "sku" => *sku = Some(coerced.into_string()),
         "stock" => *value = Some(RecordValue::Stock(coerced.into_i64()?)),
         "price" => *value = Some(RecordValue::Price(coerced.into_f64()?)),
         _ => {}

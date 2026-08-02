@@ -94,13 +94,13 @@ original `String::from_utf8_lossy(...).into_owned()` approach).
 
 Originally this was a generic `HashMap<String, Value>` (any field, any
 shape). In practice, config validation (see below) already guarantees every
-source's `fields` contains exactly `"ean"` plus one kind-specific value field
+source's `fields` contains exactly `"sku"` plus one kind-specific value field
 (`"stock"` or `"price"`) — so a generic map bought indirection without real
 flexibility. `Record` is now:
 
 ```rust
 pub struct Record {
-    pub ean: String,
+    pub sku: String,
     pub value: RecordValue,
 }
 
@@ -116,12 +116,12 @@ impl RecordValue {
 ```
 
 Format parsers build this directly by recognizing the reserved field *names*
-`"ean"`/`"stock"`/`"price"` (not by knowing `ExtractKind` — a config file only
+`"sku"`/`"stock"`/`"price"` (not by knowing `ExtractKind` — a config file only
 ever defines one of `stock`/`price` in the first place, so the parser never
 needs to ask "which kind is this run for"). Any other configured field (e.g.
 a `"name"` column) is parsed but currently has nowhere to go and is dropped —
 acceptable since `Record`'s only consumers are `Handler` impls that only ever
-want `ean` + the one value.
+want `sku` + the one value.
 
 `Value` (the old generic type: `String`/`Integer`/`Decimal`/`Date`) still
 exists, but demoted to an intermediate: `coerce(raw, field_type) -> Value`
@@ -172,7 +172,7 @@ pub enum WriteRow {
 }
 
 pub trait OutputWriter {
-    fn write_record(&mut self, ean: &str, row: &WriteRow, shortname: &str, prefix: &str) -> Result<()>;
+    fn write_record(&mut self, sku: &str, row: &WriteRow, shortname: &str, prefix: &str) -> Result<()>;
 }
 
 pub fn create_writer(kind: ExtractKind) -> Result<Box<dyn OutputWriter>> { .. } // the one boundary match
@@ -235,7 +235,7 @@ once per kind, or once for the whole program after both kinds complete?
 ## Config additions
 
 - `SourceConfig` gained `shortname: String` and `prefix: String` — used in
-  the exported CSV row (`{shortname};{prefix} - {ean};...`), not part of
+  the exported CSV row (`{shortname};{prefix} - {sku};...`), not part of
   extraction itself.
 - `SourceConfig.auth: Option<AuthConfig>` (`{ username, password }`), a
   single optional `[sources.auth]` sub-table (not `[[sources.auth]]` — a
@@ -243,7 +243,7 @@ once per kind, or once for the whole program after both kinds complete?
   `webrequest::fetch(client, url, auth: Option<&AuthConfig>)`, which adds
   HTTP Basic auth via `request.basic_auth(...)` when present.
 - `Config::load` now takes `kind: ExtractKind` and calls `Config::validate`
-  after parsing: every source's `fields` must contain `"ean"`, plus
+  after parsing: every source's `fields` must contain `"sku"`, plus
   `"stock"` or `"price"` depending on `kind` — fails fast at load time
   instead of producing incomplete `Record`s later. The kind→field-name
   mapping lives in exactly one place, `ExtractKind::value_field()` (in

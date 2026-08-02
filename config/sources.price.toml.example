@@ -7,7 +7,7 @@ format = "xml"
 record_tag = "Produkt"
 
 [sources.fields]
-ean = { selector = "EAN" }
+sku = { selector = "SKU" }
 price = { selector = "Price", type = "decimal" }
 name = { selector = "Name" }
 
@@ -22,5 +22,5 @@ delimiter = ","
 has_header = true
 
 [sources.fields]
-ean = { selector = "EAN_CODE" }
+sku = { selector = "SKU_CODE" }
 price = { selector = "Price", type = "decimal" }

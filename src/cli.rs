@@ -34,7 +34,7 @@ pub enum ExtractKind {
 }
 
 impl ExtractKind {
-    /// The config `fields` key this kind requires alongside "ean".
+    /// The config `fields` key this kind requires alongside "sku".
     pub fn value_field(&self) -> &'static str {
         match self {
             ExtractKind::Stock => "stock",
