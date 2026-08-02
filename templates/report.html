@@ -2,80 +2,162 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Extraction report</title>
 <style>
   body {
-    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    background: #f4f5f7;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #eef0f3;
     margin: 0;
-    padding: 24px;
+    padding: 32px 16px;
     color: #1f2328;
   }
   .container {
     max-width: 640px;
     margin: 0 auto;
     background: #ffffff;
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px rgba(16, 24, 40, 0.06);
   }
   .header {
-    background: #1f2937;
+    background: #111827;
     color: #ffffff;
-    padding: 20px 28px;
+    padding: 28px 32px;
+  }
+  .header .eyebrow {
+    margin: 0 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9ca3af;
   }
   .header h1 {
     margin: 0;
-    font-size: 18px;
-    font-weight: 600;
+    font-size: 20px;
+    font-weight: 700;
   }
   .header p {
-    margin: 4px 0 0;
+    margin: 6px 0 0;
     font-size: 13px;
-    color: #9ca3af;
+    color: #d1d5db;
   }
-  .summary {
-    display: flex;
-    padding: 16px 28px;
-    gap: 32px;
+  .status-banner {
+    margin: 0;
+    padding: 14px 32px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .status-banner.ok {
+    background: #ecfdf5;
+    color: #047857;
+    border-bottom: 1px solid #d1fae5;
+  }
+  .status-banner.err {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-bottom: 1px solid #fee2e2;
+  }
+  .program-errors {
+    margin: 16px 32px 0;
+    padding: 14px 16px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+  }
+  .program-errors-heading {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #b91c1c;
+  }
+  .program-errors ul.errors {
+    border-top: none;
+    padding-top: 6px;
+  }
+  .stats {
+    width: 100%;
+    border-collapse: collapse;
     border-bottom: 1px solid #e5e7eb;
   }
-  .summary .stat {
-    font-size: 13px;
-    color: #6b7280;
+  .stats td {
+    width: 33.33%;
+    padding: 20px 8px;
+    text-align: center;
+    border-right: 1px solid #f0f1f3;
   }
-  .summary .stat strong {
+  .stats td:last-child {
+    border-right: none;
+  }
+  .stats .stat-value {
     display: block;
-    font-size: 22px;
-    color: #1f2328;
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.2;
+  }
+  .stats .stat-label {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
     font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #9ca3af;
   }
   .sources {
-    padding: 8px 28px 24px;
+    padding: 24px 32px 8px;
+  }
+  .sources-heading {
+    margin: 0 0 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9ca3af;
   }
   .source {
-    border-top: 1px solid #e5e7eb;
-    padding: 16px 0;
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid #d1d5db;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
   }
-  .source:first-child {
-    border-top: none;
+  .source.ok {
+    border-left-color: #22c55e;
   }
-  .source-name {
-    font-size: 15px;
-    font-weight: 600;
-    margin: 0 0 4px;
+  .source.err {
+    border-left-color: #ef4444;
+  }
+  .source-top {
+    display: table;
+    width: 100%;
+  }
+  .source-top .source-name {
+    display: table-cell;
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+  }
+  .source-top .source-badge {
+    display: table-cell;
+    text-align: right;
+    white-space: nowrap;
   }
   .source-meta {
-    font-size: 13px;
+    margin: 4px 0 0;
+    font-size: 12px;
     color: #6b7280;
-    margin: 0 0 8px;
   }
   .badge {
     display: inline-block;
-    padding: 2px 10px;
+    padding: 3px 10px;
     border-radius: 999px;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 700;
   }
   .badge-ok {
     background: #dcfce7;
@@ -86,17 +168,31 @@
     color: #991b1b;
   }
   ul.errors {
-    margin: 8px 0 0;
-    padding-left: 18px;
-    font-size: 13px;
-    color: #991b1b;
+    margin: 10px 0 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px dashed #e5e7eb;
+    padding-top: 8px;
   }
   ul.errors li {
-    margin-bottom: 4px;
+    margin-bottom: 5px;
+    padding-left: 14px;
+    position: relative;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: #991b1b;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+  ul.errors li::before {
+    content: "\2022";
+    position: absolute;
+    left: 0;
+    color: #ef4444;
   }
   .footer {
-    padding: 16px 28px;
-    font-size: 12px;
+    padding: 20px 32px 28px;
+    font-size: 11px;
     color: #9ca3af;
     text-align: center;
   }
@@ -105,18 +201,38 @@
 <body>
   <div class="container">
     <div class="header">
+      <p class="eyebrow">jumakl-extractor</p>
       <h1>Extraction report</h1>
       <p>Completed in {{ELAPSED}}</p>
     </div>
-    <div class="summary">
-      <div class="stat"><strong>{{SOURCE_COUNT}}</strong>sources</div>
-      <div class="stat"><strong>{{RECORD_COUNT}}</strong>records</div>
-      <div class="stat"><strong>{{ERROR_COUNT}}</strong>errors</div>
-    </div>
+
+    <p class="status-banner {{STATUS}}">{{STATUS_LABEL}}</p>
+
+    {{PROGRAM_ERRORS}}
+
+    <table class="stats" role="presentation" cellpadding="0" cellspacing="0">
+      <tr>
+        <td>
+          <span class="stat-value">{{SOURCE_COUNT}}</span>
+          <span class="stat-label">Sources</span>
+        </td>
+        <td>
+          <span class="stat-value">{{RECORD_COUNT}}</span>
+          <span class="stat-label">Records</span>
+        </td>
+        <td>
+          <span class="stat-value">{{ERROR_COUNT}}</span>
+          <span class="stat-label">Errors</span>
+        </td>
+      </tr>
+    </table>
+
     <div class="sources">
+      <p class="sources-heading">By source</p>
       {{SOURCES}}
     </div>
-    <div class="footer">jumakl-extractor</div>
+
+    <div class="footer">Automated report from jumakl-extractor</div>
   </div>
 </body>
 </html>

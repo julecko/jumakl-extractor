@@ -8,6 +8,7 @@ use crate::pipeline::SourceReport;
 pub struct RunSummary {
     pub elapsed: Duration,
     pub reports: Vec<SourceReport>,
+    pub program_errors: Vec<String>,
 }
 
 /// One implementor per report channel (email.rs, ...). Nothing outside this

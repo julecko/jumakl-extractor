@@ -25,16 +25,32 @@ fn main() -> anyhow::Result<()> {
     let _guard = logging::init(cli.verbose);
 
     let mut reports = Vec::new();
+    let mut program_errors = Vec::new();
+
     for mode in cli.modes() {
-        let config = Config::load(cli.config_path(mode), mode)?;
+        let config = match Config::load(cli.config_path(mode), mode) {
+            Ok(config) => config,
+            Err(err) => {
+                tracing::error!("failed to load config for {mode:?}: {err:#}");
+                program_errors.push(format!("{mode:?}: failed to load config: {err:#}"));
+                continue;
+            }
+        };
         tracing::info!("Loaded {} suppliers for {:?}", config.sources.len(), mode);
-        reports.extend(pipeline::run(mode, &config));
+
+        let result = pipeline::run(mode, &config);
+        reports.extend(result.reports);
+        program_errors.extend(result.program_errors);
     }
 
     let elapsed = start.elapsed();
     tracing::info!("Program took {elapsed:?}");
 
-    let summary = report::RunSummary { elapsed, reports };
+    let summary = report::RunSummary {
+        elapsed,
+        reports,
+        program_errors,
+    };
     match report::create_reporter() {
         Ok(reporter) => {
             if let Err(err) = reporter.send(&summary) {
