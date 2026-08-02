@@ -38,7 +38,7 @@ impl StockCsvWriter {
 impl OutputWriter for StockCsvWriter {
     fn write_record(
         &mut self,
-        ean: &str,
+        sku: &str,
         row: &WriteRow,
         shortname: &str,
         prefix: &str,
@@ -52,7 +52,7 @@ impl OutputWriter for StockCsvWriter {
         writeln!(
             self.file,
             "{};{} - {};{n};{}",
-            shortname, prefix, ean, self.date
+            shortname, prefix, sku, self.date
         )?;
         Ok(())
     }
@@ -78,7 +78,7 @@ impl PriceCsvWriter {
 impl OutputWriter for PriceCsvWriter {
     fn write_record(
         &mut self,
-        ean: &str,
+        sku: &str,
         row: &WriteRow,
         _shortname: &str,
         _prefix: &str,
@@ -89,7 +89,7 @@ impl OutputWriter for PriceCsvWriter {
             anyhow::bail!("PriceCsvWriter received a non-price row");
         };
 
-        writeln!(self.file, "{ean};{buy};{sell};{fix}")?;
+        writeln!(self.file, "{sku};{buy};{sell};{fix}")?;
         Ok(())
     }
 }

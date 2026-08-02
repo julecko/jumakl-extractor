@@ -130,32 +130,32 @@ fn run_source(
     let parse_result = sources::parse_source(&content, source, &mut |record| {
         match handler.on_record(&record) {
             Ok(Some(row)) => {
-                if let Err(err) = writer.write_record(&record.ean, &row, shortname, prefix) {
+                if let Err(err) = writer.write_record(&record.sku, &row, shortname, prefix) {
                     tracing::warn!(
-                        "failed to write record (source={}) (ean={}): {err:#}",
+                        "failed to write record (source={}) (sku={}): {err:#}",
                         source.name,
-                        record.ean
+                        record.sku
                     );
                     external_errors.push(format!(
-                        "write failed (source={}) (ean={}): {err:#}",
-                        source.name, record.ean
+                        "write failed (source={}) (sku={}): {err:#}",
+                        source.name, record.sku
                     ));
                 }
             }
             Ok(None) => {
                 tracing::error!(
-                    "This output shouldnt happen, fix immidiatelly (source={}) (ean={})",
+                    "This output shouldnt happen, fix immidiatelly (source={}) (sku={})",
                     source.name,
-                    record.ean
+                    record.sku
                 );
                 external_errors.push(format!(
-                    "This output shouldnt happen, fix immidiatelly (source={}) (ean={})",
-                    source.name, record.ean
+                    "This output shouldnt happen, fix immidiatelly (source={}) (sku={})",
+                    source.name, record.sku
                 ));
             }
             Err(err) => {
-                tracing::warn!("failed to handle record (ean={}): {err:#}", record.ean);
-                external_errors.push(format!("handle failed (ean={}): {err:#}", record.ean));
+                tracing::warn!("failed to handle record (sku={}): {err:#}", record.sku);
+                external_errors.push(format!("handle failed (sku={}): {err:#}", record.sku));
             }
         }
 

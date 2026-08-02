@@ -113,13 +113,13 @@ impl Config {
     }
 
     fn validate(&self, kind: ExtractKind) -> Result<()> {
-        // "ean" is always required; which of "price"/"stock" is required
+        // "sku" is always required; which of "price"/"stock" is required
         // depends on which mode this config file is being loaded for.
         let kind_field = kind.value_field();
 
         for source in &self.sources {
-            if !source.fields.contains_key("ean") {
-                bail!("source '{}' is missing mandatory field 'ean'", source.name);
+            if !source.fields.contains_key("sku") {
+                bail!("source '{}' is missing mandatory field 'sku'", source.name);
             }
             if !source.fields.contains_key(kind_field) {
                 bail!(

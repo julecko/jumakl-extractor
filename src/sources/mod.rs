@@ -16,7 +16,7 @@ pub enum Value {
 
 #[derive(Debug, Clone)]
 pub struct Record {
-    pub ean: String,
+    pub sku: String,
     pub value: RecordValue,
 }
 
@@ -81,7 +81,7 @@ pub(crate) fn coerce(raw: &str, field_type: FieldType) -> Result<Value> {
 }
 
 impl Value {
-    /// "ean" is always treated as a plain string regardless of configured type.
+    /// "sku" is always treated as a plain string regardless of configured type.
     pub(crate) fn into_string(self) -> String {
         match self {
             Value::String(s) | Value::Date(s) => s,
