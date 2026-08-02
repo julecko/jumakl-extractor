@@ -1,6 +1,7 @@
 target/
 logs/
 output/
+.claude/
 
 # Executable
 jumakl-extractor.exe
