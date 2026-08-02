@@ -37,6 +37,16 @@ pub struct SourceReport {
     pub errors: Vec<String>,
 }
 
+/// `run`'s full result: one SourceReport per source, plus any failure that
+/// isn't tied to a specific source at all (e.g. the output file itself
+/// couldn't be created) and so can't live on a SourceReport. The program
+/// always reports what happened - a run-level failure still has to reach
+/// the eventual email, not just vanish into a log line.
+pub struct RunResult {
+    pub reports: Vec<SourceReport>,
+    pub program_errors: Vec<String>,
+}
+
 // Only place that matches on kind: picks which concrete type to box up.
 // Everything downstream calls the trait methods, never this enum.
 fn new_handler(kind: ExtractKind) -> Box<dyn Handler> {
@@ -46,7 +56,7 @@ fn new_handler(kind: ExtractKind) -> Box<dyn Handler> {
     }
 }
 
-pub fn run(kind: ExtractKind, config: &Config) -> Vec<SourceReport> {
+pub fn run(kind: ExtractKind, config: &Config) -> RunResult {
     tracing::debug!("Starting extraction");
 
     let client = Client::new();
@@ -55,7 +65,10 @@ pub fn run(kind: ExtractKind, config: &Config) -> Vec<SourceReport> {
         Ok(writer) => writer,
         Err(err) => {
             tracing::error!("failed to open output file: {err:#}");
-            return Vec::new();
+            return RunResult {
+                reports: Vec::new(),
+                program_errors: vec![format!("{kind:?}: failed to open output file: {err:#}")],
+            };
         }
     };
 
@@ -75,7 +88,10 @@ pub fn run(kind: ExtractKind, config: &Config) -> Vec<SourceReport> {
         }
     }
 
-    reports
+    RunResult {
+        reports,
+        program_errors: Vec::new(),
+    }
 }
 
 // No match here at all: format was resolved inside parse_source, kind was

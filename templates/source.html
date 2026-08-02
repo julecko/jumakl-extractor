@@ -1,8 +1,8 @@
-<div class="source">
-  <p class="source-name">{{SUPPLIER}}</p>
-  <p class="source-meta">
-    {{RECORDS}} record(s) &middot;
-    <span class="{{BADGE_CLASS}}">{{ERROR_COUNT}} error(s)</span>
-  </p>
+<div class="source {{STATUS}}">
+  <div class="source-top">
+    <span class="source-name">{{SUPPLIER}}</span>
+    <span class="source-badge"><span class="badge badge-{{STATUS}}">{{ERROR_COUNT}} error(s)</span></span>
+  </div>
+  <p class="source-meta">{{RECORDS}} record(s) processed</p>
   {{ERRORS}}
 </div>
