@@ -17,10 +17,14 @@ pub struct Cli {
     pub sources: Option<Vec<String>>,
 
     /// Path to the sources config file. Defaults depend on --extract:
-    /// config/stock.toml for stock, config/price.toml for price,
-    /// config/sources.toml if --extract is omitted.
-    #[arg(short, long)]
-    pub config: Option<PathBuf>,
+    /// config/sources.stock.toml for stock, config/sources.price.toml for
+    /// price. Ignored if --extract is omitted, since both modes would run.
+    #[arg(long)]
+    pub source_config: Option<PathBuf>,
+
+    /// Path to the whole-program config file. Defaults to config/program.toml.
+    #[arg(long)]
+    pub program_config: Option<PathBuf>,
 
     /// Print extra logging
     #[arg(short, long)]
@@ -60,6 +64,15 @@ impl Cli {
             return default;
         }
 
-        self.config.clone().unwrap_or(default)
+        self.source_config.clone().unwrap_or(default)
+    }
+
+    /// Whole-program config, independent of --extract - always this one file
+    /// (or --program-config's override), unlike config_path(kind) which
+    /// varies per mode.
+    pub fn program_config_path(&self) -> PathBuf {
+        self.program_config
+            .clone()
+            .unwrap_or_else(|| config_folder_path().join("program.toml"))
     }
 }

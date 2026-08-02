@@ -14,7 +14,7 @@ use clap::Parser;
 use dotenvy::dotenv;
 
 use cli::Cli;
-use config::Config;
+use config::{Config, ProgramConfig};
 
 fn main() -> anyhow::Result<()> {
     let start = Instant::now();
@@ -27,6 +27,26 @@ fn main() -> anyhow::Result<()> {
     let mut reports = Vec::new();
     let mut program_errors = Vec::new();
 
+    // Loaded once for the whole program, not per mode - see ProgramConfig.
+    let program_config = match ProgramConfig::load(cli.program_config_path()) {
+        Ok(program_config) => program_config,
+        Err(err) => {
+            tracing::error!("failed to load program config: {err:#}");
+            program_errors.push(format!("failed to load program config: {err:#}"));
+            ProgramConfig::default()
+        }
+    };
+
+    // Compiled once here, not per record - see ProgramConfig::compiled_sku_exclusions.
+    let sku_exclusions = match program_config.compiled_sku_exclusions() {
+        Ok(patterns) => patterns,
+        Err(err) => {
+            tracing::error!("failed to compile excluded_sku_patterns: {err:#}");
+            program_errors.push(format!("failed to compile excluded_sku_patterns: {err:#}"));
+            Vec::new()
+        }
+    };
+
     for mode in cli.modes() {
         let config = match Config::load(cli.config_path(mode), mode) {
             Ok(config) => config,
@@ -38,7 +58,7 @@ fn main() -> anyhow::Result<()> {
         };
         tracing::info!("Loaded {} suppliers for {:?}", config.sources.len(), mode);
 
-        let result = pipeline::run(mode, &config);
+        let result = pipeline::run(mode, &config, &sku_exclusions);
         reports.extend(result.reports);
         program_errors.extend(result.program_errors);
     }

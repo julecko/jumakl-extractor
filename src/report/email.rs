@@ -78,6 +78,7 @@ fn render_html(summary: &RunSummary) -> Result<String> {
         .context("failed to read templates/source.html")?;
 
     let total_records: usize = summary.reports.iter().map(|r| r.records).sum();
+    let total_excluded: usize = summary.reports.iter().map(|r| r.excluded).sum();
     let source_errors: usize = summary.reports.iter().map(|r| r.errors.len()).sum();
     let total_errors = source_errors + summary.program_errors.len();
 
@@ -115,6 +116,7 @@ fn render_html(summary: &RunSummary) -> Result<String> {
         .replace("{{PROGRAM_ERRORS}}", &program_errors_html)
         .replace("{{SOURCE_COUNT}}", &summary.reports.len().to_string())
         .replace("{{RECORD_COUNT}}", &total_records.to_string())
+        .replace("{{EXCLUDED_COUNT}}", &total_excluded.to_string())
         .replace("{{ERROR_COUNT}}", &source_errors.to_string())
         .replace("{{SOURCES}}", &sources_html))
 }
@@ -150,6 +152,7 @@ fn render_source(template: &str, report: &SourceReport) -> String {
     template
         .replace("{{SUPPLIER}}", &html_escape(&report.supplier))
         .replace("{{RECORDS}}", &report.records.to_string())
+        .replace("{{EXCLUDED}}", &report.excluded.to_string())
         .replace("{{ERROR_COUNT}}", &report.errors.len().to_string())
         .replace("{{STATUS}}", status)
         .replace("{{ERRORS}}", &errors_html)

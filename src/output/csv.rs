@@ -26,7 +26,7 @@ pub struct StockCsvWriter {
 impl StockCsvWriter {
     pub fn create() -> Result<Self> {
         let mut file = create_file("massDataStock.csv")?;
-        writeln!(file, "SOURCE;EAN;STOCK;DATE")?;
+        writeln!(file, "SOURCE;SKU;STOCK;DATE")?;
 
         Ok(Self {
             file,

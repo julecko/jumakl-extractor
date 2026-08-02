@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use regex::Regex;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
@@ -9,6 +10,48 @@ use crate::cli::ExtractKind;
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub sources: Vec<SourceConfig>,
+}
+
+/// Settings for the whole program, independent of --extract kind - kept
+/// deliberately separate from Config/SourceConfig, which are always loaded
+/// per-kind from sources.stock.toml / sources.price.toml. Loaded once, from
+/// its own file (config/program.toml), not per mode.
+#[derive(Debug, Deserialize, Default)]
+pub struct ProgramConfig {
+    /// Regex rules (not exact SKUs) - any record whose sku matches ANY of
+    /// these is skipped entirely, before it reaches a Handler or a writer.
+    /// Raw pattern strings here; compiled once via compiled_sku_exclusions().
+    #[serde(default)]
+    pub excluded_sku_patterns: Vec<String>,
+    // Add more whole-program settings here as needed (e.g. a product
+    // catalog URL to check records against).
+}
+
+impl ProgramConfig {
+    pub fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let path = path.as_ref();
+
+        if !path.exists() {
+            return Ok(Self::default());
+        }
+
+        let raw = fs::read_to_string(path)
+            .with_context(|| format!("failed to read program config file: {}", path.display()))?;
+        toml::from_str(&raw)
+            .with_context(|| format!("failed to parse program config file: {}", path.display()))
+    }
+
+    /// Compiles excluded_sku_patterns once at startup, so run_source only
+    /// ever matches against already-compiled Regex, never recompiling per record.
+    pub fn compiled_sku_exclusions(&self) -> Result<Vec<Regex>> {
+        self.excluded_sku_patterns
+            .iter()
+            .map(|pattern| {
+                Regex::new(pattern)
+                    .with_context(|| format!("invalid excluded_sku_patterns regex: '{pattern}'"))
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, Deserialize)]

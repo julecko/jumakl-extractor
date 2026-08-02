@@ -17,6 +17,7 @@ clap = { version = "4.6.2", features = ["derive"] }
 dotenvy = "0.15.7"
 lettre = { version = "0.11.22", features = ["smtp-transport", "builder", "native-tls"] }
 quick-xml = "0.40.1"
+regex = "1.13.1"
 reqwest = { version = "0.13.4", features = ["blocking"] }
 serde = { version = "1.0.229", features = ["derive"] }
 tokio = { version = "1.52.3", features = ["full"] }

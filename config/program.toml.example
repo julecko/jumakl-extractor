@@ -1,0 +1,15 @@
+# Whole-program settings, independent of --extract kind (stock/price).
+# Loaded once per run from config/program.toml (gitignored, copy this file
+# there). Separate from sources.stock.toml / sources.price.toml, which stay
+# per-kind and only ever list sources.
+
+# Regex rules (not exact SKUs) - a record is skipped entirely (no write, no
+# analysis) if its sku matches ANY of these patterns. Matches anywhere in
+# the sku unless you anchor with ^ / $.
+excluded_sku_patterns = [
+    "^TEST-",
+    "-DISCONTINUED$",
+]
+
+# Add more whole-program settings here as real ones are needed, and to
+# ProgramConfig in src/config.rs to match.

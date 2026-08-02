@@ -2,6 +2,7 @@ mod price;
 mod stock;
 
 use anyhow::Result;
+use regex::Regex;
 use reqwest::blocking::Client;
 
 use crate::cli::ExtractKind;
@@ -34,6 +35,7 @@ pub trait Handler {
 pub struct SourceReport {
     pub supplier: String,
     pub records: usize,
+    pub excluded: usize,
     pub errors: Vec<String>,
 }
 
@@ -56,7 +58,7 @@ fn new_handler(kind: ExtractKind) -> Box<dyn Handler> {
     }
 }
 
-pub fn run(kind: ExtractKind, config: &Config) -> RunResult {
+pub fn run(kind: ExtractKind, config: &Config, sku_exclusions: &[Regex]) -> RunResult {
     tracing::debug!("Starting extraction");
 
     let client = Client::new();
@@ -74,7 +76,13 @@ pub fn run(kind: ExtractKind, config: &Config) -> RunResult {
 
     let mut reports = Vec::with_capacity(config.sources.len());
     for source in &config.sources {
-        reports.push(run_source(kind, &client, source, writer.as_mut()));
+        reports.push(run_source(
+            kind,
+            &client,
+            source,
+            writer.as_mut(),
+            sku_exclusions,
+        ));
     }
 
     for report in &reports {
@@ -105,6 +113,7 @@ fn run_source(
     client: &Client,
     source: &SourceConfig,
     writer: &mut dyn OutputWriter,
+    sku_exclusions: &[Regex],
 ) -> SourceReport {
     let content = match webrequest::fetch(client, &source.url, source.auth.as_ref()) {
         Ok(content) => content,
@@ -113,6 +122,7 @@ fn run_source(
             return SourceReport {
                 supplier: source.name.clone(),
                 records: 0,
+                excluded: 0,
                 errors: vec![format!("fetch failed: {err:#}")],
             };
         }
@@ -124,10 +134,20 @@ fn run_source(
     // propagating one) - merged into the handler's report after finish(),
     // since the handler doesn't know about the writer or fetch/parse at all.
     let mut external_errors = Vec::new();
+    let mut excluded_count = 0;
 
     let shortname = source.shortname.as_str();
     let prefix = source.prefix.as_str();
     let parse_result = sources::parse_source(&content, source, &mut |record| {
+        if sku_exclusions
+            .iter()
+            .any(|pattern| pattern.is_match(&record.sku))
+        {
+            tracing::debug!("skipping excluded sku (sku={})", record.sku);
+            excluded_count += 1;
+            return Ok(());
+        }
+
         match handler.on_record(&record) {
             Ok(Some(row)) => {
                 if let Err(err) = writer.write_record(&record.sku, &row, shortname, prefix) {
@@ -163,8 +183,10 @@ fn run_source(
     });
 
     // Handler owns the record count (it already tracks it internally) and
-    // builds the report; run_source only adds what it alone can see.
+    // builds the report; run_source only adds what it alone can see -
+    // excluded records never reach the handler at all, so it can't count them.
     let mut report = handler.finish(&source.name);
+    report.excluded = excluded_count;
     report.errors.extend(external_errors);
 
     if let Err(err) = parse_result {

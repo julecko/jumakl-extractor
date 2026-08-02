@@ -28,6 +28,7 @@ impl Handler for StockHandler {
         SourceReport {
             supplier: source_name.to_string(),
             records: self.record_count,
+            excluded: 0, // run_source overwrites this with the real count
             errors: Vec::new(),
         }
     }
