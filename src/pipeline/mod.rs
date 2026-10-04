@@ -61,7 +61,16 @@ fn new_handler(kind: ExtractKind) -> Box<dyn Handler> {
 pub fn run(kind: ExtractKind, config: &Config, sku_exclusions: &[Regex]) -> RunResult {
     tracing::debug!("Starting extraction");
 
-    let client = Client::new();
+    let client = match webrequest::build_client() {
+        Ok(c) => c,
+        Err(err) => {
+            tracing::error!("failed to build web client: {err:#}");
+            return RunResult {
+                reports: Vec::new(),
+                program_errors: vec![format!("failed to build web client: {err:#}")],
+            };
+        }
+    };
 
     let mut writer = match output::create_writer(kind) {
         Ok(writer) => writer,
