@@ -4,6 +4,7 @@ mod logging;
 mod output;
 mod paths;
 mod pipeline;
+mod pricebook;
 mod report;
 mod sources;
 mod webrequest;
@@ -58,7 +59,12 @@ fn main() -> anyhow::Result<()> {
         };
         tracing::info!("Loaded {} suppliers for {:?}", config.sources.len(), mode);
 
-        let result = pipeline::run(mode, &config, &sku_exclusions);
+        let result = pipeline::run(
+            mode,
+            &config,
+            &sku_exclusions,
+            program_config.pricebook.as_ref(),
+        );
         reports.extend(result.reports);
         program_errors.extend(result.program_errors);
     }

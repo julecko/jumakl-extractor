@@ -60,18 +60,14 @@ impl OutputWriter for StockCsvWriter {
 
 pub struct PriceCsvWriter {
     file: BufWriter<File>,
-    date: String,
 }
 
 impl PriceCsvWriter {
     pub fn create() -> Result<Self> {
         let mut file = create_file("massDataPrice.csv")?;
-        writeln!(file, "EAN;BUY_PRICE;SELL_PRICE;FIX_PRICE")?;
+        writeln!(file, "SKU;BUY_PRICE;SELL_PRICE;FIX_PRICE")?;
 
-        Ok(Self {
-            file,
-            date: Local::now().format("%d.%m.%Y").to_string(),
-        })
+        Ok(Self { file })
     }
 }
 
@@ -81,7 +77,7 @@ impl OutputWriter for PriceCsvWriter {
         sku: &str,
         row: &WriteRow,
         _shortname: &str,
-        _prefix: &str,
+        prefix: &str,
     ) -> Result<()> {
         // Only ever constructed for ExtractKind::Price, so row is
         // always the Price variant - nothing to branch on here.
@@ -89,7 +85,10 @@ impl OutputWriter for PriceCsvWriter {
             anyhow::bail!("PriceCsvWriter received a non-price row");
         };
 
-        writeln!(self.file, "{sku};{buy};{sell};{fix}")?;
+        // Same format as the C++ version: prefixed SKU, two-decimal prices,
+        // and Yes/No for the fix flag.
+        let fix = if *fix { "Yes" } else { "No" };
+        writeln!(self.file, "{prefix} - {sku};{buy:.2};{sell:.2};{fix}")?;
         Ok(())
     }
 }

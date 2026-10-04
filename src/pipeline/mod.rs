@@ -6,8 +6,9 @@ use regex::Regex;
 use reqwest::blocking::Client;
 
 use crate::cli::ExtractKind;
-use crate::config::{Config, SourceConfig};
+use crate::config::{Config, PriceBookConfig, SourceConfig};
 use crate::output::{self, OutputWriter, WriteRow};
+use crate::pricebook::{self, PriceBook};
 use crate::sources::{self, Record};
 use crate::webrequest;
 
@@ -51,14 +52,28 @@ pub struct RunResult {
 
 // Only place that matches on kind: picks which concrete type to box up.
 // Everything downstream calls the trait methods, never this enum.
-fn new_handler(kind: ExtractKind) -> Box<dyn Handler> {
+fn new_handler<'a>(
+    kind: ExtractKind,
+    source: &'a SourceConfig,
+    pricebook: Option<&'a PriceBook>,
+) -> Result<Box<dyn Handler + 'a>> {
     match kind {
-        ExtractKind::Stock => Box::new(stock::StockHandler::default()),
-        ExtractKind::Price => Box::new(price::PriceHandler::default()),
+        ExtractKind::Stock => Ok(Box::new(stock::StockHandler::default())),
+        ExtractKind::Price => {
+            let Some(pricebook) = pricebook else {
+                anyhow::bail!("no pricebook loaded for price extraction");
+            };
+            Ok(Box::new(price::PriceHandler::new(source, pricebook)))
+        }
     }
 }
 
-pub fn run(kind: ExtractKind, config: &Config, sku_exclusions: &[Regex]) -> RunResult {
+pub fn run(
+    kind: ExtractKind,
+    config: &Config,
+    sku_exclusions: &[Regex],
+    pricebook_config: Option<&PriceBookConfig>,
+) -> RunResult {
     tracing::debug!("Starting extraction");
 
     let client = match webrequest::build_client() {
@@ -69,6 +84,30 @@ pub fn run(kind: ExtractKind, config: &Config, sku_exclusions: &[Regex]) -> RunR
                 reports: Vec::new(),
                 program_errors: vec![format!("failed to build web client: {err:#}")],
             };
+        }
+    };
+
+    // Loaded before the output file is created, so a failed download leaves
+    // the previous run's output in place.
+    let pricebook = match (kind, pricebook_config) {
+        (ExtractKind::Stock, _) => None,
+        (ExtractKind::Price, None) => {
+            return RunResult {
+                reports: Vec::new(),
+                program_errors: vec!["Price: no [pricebook] url in program.toml".to_string()],
+            };
+        }
+        (ExtractKind::Price, Some(pricebook_config)) => {
+            match pricebook::load(&client, pricebook_config) {
+                Ok(book) => Some(book),
+                Err(err) => {
+                    tracing::error!("failed to load pricebook: {err:#}");
+                    return RunResult {
+                        reports: Vec::new(),
+                        program_errors: vec![format!("Price: failed to load pricebook: {err:#}")],
+                    };
+                }
+            }
         }
     };
 
@@ -91,6 +130,7 @@ pub fn run(kind: ExtractKind, config: &Config, sku_exclusions: &[Regex]) -> RunR
             source,
             writer.as_mut(),
             sku_exclusions,
+            pricebook.as_ref(),
         ));
     }
 
@@ -123,6 +163,7 @@ fn run_source(
     source: &SourceConfig,
     writer: &mut dyn OutputWriter,
     sku_exclusions: &[Regex],
+    pricebook: Option<&PriceBook>,
 ) -> SourceReport {
     let content = match webrequest::fetch(client, &source.url, source.auth.as_ref()) {
         Ok(content) => content,
@@ -137,7 +178,18 @@ fn run_source(
         }
     };
 
-    let mut handler = new_handler(kind);
+    let mut handler = match new_handler(kind, source, pricebook) {
+        Ok(handler) => handler,
+        Err(err) => {
+            tracing::error!("source {} failed to set up: {err:#}", source.name);
+            return SourceReport {
+                supplier: source.name.clone(),
+                records: 0,
+                excluded: 0,
+                errors: vec![format!("setup failed: {err:#}")],
+            };
+        }
+    };
 
     // Errors from outside the handler's own view (writing, or on_record
     // propagating one) - merged into the handler's report after finish(),
@@ -171,17 +223,9 @@ fn run_source(
                     ));
                 }
             }
-            Ok(None) => {
-                tracing::error!(
-                    "This output shouldnt happen, fix immidiatelly (source={}) (sku={})",
-                    source.name,
-                    record.sku
-                );
-                external_errors.push(format!(
-                    "This output shouldnt happen, fix immidiatelly (source={}) (sku={})",
-                    source.name, record.sku
-                ));
-            }
+            // The handler dropped this record on purpose (e.g. price: SKU not in
+            // the pricebook). It has already counted that itself.
+            Ok(None) => {}
             Err(err) => {
                 tracing::warn!("failed to handle record (sku={}): {err:#}", record.sku);
                 external_errors.push(format!("handle failed (sku={}): {err:#}", record.sku));

@@ -23,8 +23,16 @@ pub struct ProgramConfig {
     /// Raw pattern strings here; compiled once via compiled_sku_exclusions().
     #[serde(default)]
     pub excluded_sku_patterns: Vec<String>,
-    // Add more whole-program settings here as needed (e.g. a product
-    // catalog URL to check records against).
+    /// Our own reference prices, used by --extract price. Optional so stock
+    /// runs don't need it; a price run without it reports a program error.
+    #[serde(default)]
+    pub pricebook: Option<PriceBookConfig>,
+    // Add more whole-program settings here as needed.
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PriceBookConfig {
+    pub url: String,
 }
 
 impl ProgramConfig {
@@ -63,6 +71,11 @@ pub struct SourceConfig {
 
     pub auth: Option<AuthConfig>,
     pub fields: HashMap<String, FieldMapping>,
+
+    /// Supplier's price includes VAT, which price analysis divides out before
+    /// comparing. Only used by --extract price.
+    #[serde(default)]
+    pub price_includes_vat: bool,
 
     #[serde(flatten)]
     pub format_config: FormatConfig,

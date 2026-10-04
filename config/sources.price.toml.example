@@ -3,6 +3,8 @@ name = "automax"
 url = "https://www.example.com/export/products.xml"
 format = "xml"
 
+price_includes_vat = true
+
 [sources.xml]
 record_tag = "Produkt"
 

@@ -9,7 +9,7 @@ use crate::cli::ExtractKind;
 /// (mismatch checks, buy/sell/fix math, ...), only the final shape to print.
 pub enum WriteRow {
     Stock { n: i64 },
-    Price { buy: f64, sell: f64, fix: f64 },
+    Price { buy: f64, sell: f64, fix: bool },
 }
 
 /// One implementor per output format (csv.rs, ...). Nothing outside this

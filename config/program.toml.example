@@ -11,5 +11,10 @@ excluded_sku_patterns = [
     "-DISCONTINUED$",
 ]
 
+# Reference prices for --extract price. Required for price runs; stock runs
+# ignore it.
+[pricebook]
+url = "https://someurl.com/export"
+
 # Add more whole-program settings here as real ones are needed, and to
 # ProgramConfig in src/config.rs to match.
