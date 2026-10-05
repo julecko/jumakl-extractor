@@ -57,8 +57,11 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
+    // Every source name seen in any loaded config, to catch typos in --sources.
+    let mut known_sources: Vec<String> = Vec::new();
+
     for mode in cli.modes() {
-        let config = match Config::load(cli.config_path(mode), mode) {
+        let mut config = match Config::load(cli.config_path(mode), mode) {
             Ok(config) => config,
             Err(err) => {
                 tracing::error!("failed to load config for {mode:?}: {err:#}");
@@ -66,6 +69,16 @@ fn main() -> anyhow::Result<()> {
                 continue;
             }
         };
+        known_sources.extend(config.sources.iter().map(|source| source.name.clone()));
+
+        // --sources keeps only the named sources, matched by name ignoring case.
+        if let Some(requested) = &cli.sources {
+            config.sources.retain(|source| {
+                requested
+                    .iter()
+                    .any(|name| name.eq_ignore_ascii_case(&source.name))
+            });
+        }
         tracing::info!("Loaded {} suppliers for {:?}", config.sources.len(), mode);
 
         let result = pipeline::run(
@@ -87,6 +100,26 @@ fn main() -> anyhow::Result<()> {
 
         reports.extend(result.reports);
         program_errors.extend(result.program_errors);
+    }
+
+    if let Some(requested) = &cli.sources {
+        let unknown: Vec<&String> = requested
+            .iter()
+            .filter(|name| {
+                !known_sources
+                    .iter()
+                    .any(|known| known.eq_ignore_ascii_case(name))
+            })
+            .collect();
+        if !unknown.is_empty() {
+            let names = unknown
+                .iter()
+                .map(|name| name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            tracing::error!("unknown source(s) in --sources: {names}");
+            program_errors.push(format!("unknown source(s) in --sources: {names}"));
+        }
     }
 
     let elapsed = start.elapsed();
