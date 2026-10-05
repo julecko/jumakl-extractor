@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Price fixes</title>
+<style>
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #eef0f3;
+    margin: 0;
+    padding: 32px 16px;
+    color: #1f2328;
+  }
+  .container {
+    max-width: 680px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px rgba(16, 24, 40, 0.06);
+  }
+  .header {
+    background: #111827;
+    color: #ffffff;
+    padding: 28px 32px;
+  }
+  .header .eyebrow {
+    margin: 0 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9ca3af;
+  }
+  .header h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .header p {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: #d1d5db;
+  }
+  .stats {
+    width: 100%;
+    border-collapse: collapse;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .stats td {
+    width: 50%;
+    padding: 20px 8px;
+    text-align: center;
+    border-right: 1px solid #f0f1f3;
+  }
+  .stats td:last-child {
+    border-right: none;
+  }
+  .stats .stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.2;
+  }
+  .stats .stat-label {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #9ca3af;
+  }
+  .suppliers {
+    padding: 24px 32px 8px;
+  }
+  .suppliers-heading {
+    margin: 0 0 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9ca3af;
+  }
+  .supplier {
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid #f59e0b;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .supplier-name {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+  }
+  .supplier-count {
+    margin-left: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+  }
+  table.fixes {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  table.fixes th {
+    padding: 6px 8px;
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  table.fixes td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  table.fixes td.sku {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: #111827;
+  }
+  table.fixes td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  table.fixes td.change {
+    font-weight: 700;
+    color: #b45309;
+  }
+  .footer {
+    padding: 20px 32px 28px;
+    font-size: 11px;
+    color: #9ca3af;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <p class="eyebrow">jumakl-extractor</p>
+      <h1>Price fixes</h1>
+      <p>Products whose sell price differs from the original price by more than 2%</p>
+    </div>
+
+    <table class="stats" role="presentation" cellpadding="0" cellspacing="0">
+      <tr>
+        <td>
+          <span class="stat-value">{{FIX_COUNT}}</span>
+          <span class="stat-label">Products to fix</span>
+        </td>
+        <td>
+          <span class="stat-value">{{SUPPLIER_COUNT}}</span>
+          <span class="stat-label">Suppliers</span>
+        </td>
+      </tr>
+    </table>
+
+    <div class="suppliers">
+      <p class="suppliers-heading">By supplier</p>
+      {{SUPPLIERS}}
+    </div>
+
+    <div class="footer">Automated price check from jumakl-extractor, {{DATE}}</div>
+  </div>
+</body>
+</html>

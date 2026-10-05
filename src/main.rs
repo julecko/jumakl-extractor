@@ -48,6 +48,15 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
+    // One reporter for both the price-fix mails and the status report.
+    let reporter = match report::create_reporter() {
+        Ok(reporter) => Some(reporter),
+        Err(err) => {
+            tracing::error!("failed to set up reporter: {err:#}");
+            None
+        }
+    };
+
     for mode in cli.modes() {
         let config = match Config::load(cli.config_path(mode), mode) {
             Ok(config) => config,
@@ -65,6 +74,17 @@ fn main() -> anyhow::Result<()> {
             &sku_exclusions,
             program_config.pricebook.as_ref(),
         );
+        // Separate mail, sent right after the price run and only when there
+        // are fixes. A failure is recorded as a program error, so it can't
+        // hide the rest of the run's results.
+        if mode == cli::ExtractKind::Price
+            && let Some(reporter) = &reporter
+            && let Err(err) = reporter.send_price_fixes(&result.reports)
+        {
+            tracing::error!("failed to send price fix mail: {err:#}");
+            program_errors.push(format!("Price: failed to send price fix mail: {err:#}"));
+        }
+
         reports.extend(result.reports);
         program_errors.extend(result.program_errors);
     }
@@ -77,13 +97,10 @@ fn main() -> anyhow::Result<()> {
         reports,
         program_errors,
     };
-    match report::create_reporter() {
-        Ok(reporter) => {
-            if let Err(err) = reporter.send(&summary) {
-                tracing::error!("failed to send report email: {err:#}");
-            }
-        }
-        Err(err) => tracing::error!("failed to set up reporter: {err:#}"),
+    if let Some(reporter) = &reporter
+        && let Err(err) = reporter.send(&summary)
+    {
+        tracing::error!("failed to send report email: {err:#}");
     }
 
     Ok(())

@@ -38,6 +38,18 @@ pub struct SourceReport {
     pub records: usize,
     pub excluded: usize,
     pub errors: Vec<String>,
+    /// Only filled by the price handler; empty for stock.
+    pub price_fixes: Vec<PriceFix>,
+}
+
+/// A product whose sell price is more than 2% away from our original price.
+/// Listed in the separate price-fix email.
+#[derive(Debug)]
+pub struct PriceFix {
+    /// Full SKU with the supplier prefix, e.g. "AM - 6285".
+    pub sku: String,
+    pub original_price: f64,
+    pub new_price: f64,
 }
 
 /// `run`'s full result: one SourceReport per source, plus any failure that
@@ -174,6 +186,7 @@ fn run_source(
                 records: 0,
                 excluded: 0,
                 errors: vec![format!("fetch failed: {err:#}")],
+                price_fixes: Vec::new(),
             };
         }
     };
@@ -187,6 +200,7 @@ fn run_source(
                 records: 0,
                 excluded: 0,
                 errors: vec![format!("setup failed: {err:#}")],
+                price_fixes: Vec::new(),
             };
         }
     };

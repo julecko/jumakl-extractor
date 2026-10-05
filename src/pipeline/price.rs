@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
-use super::{Handler, SourceReport};
+use super::{Handler, PriceFix, SourceReport};
 use crate::config::SourceConfig;
 use crate::output::WriteRow;
 use crate::pricebook::{PriceBook, PriceReference};
@@ -16,7 +16,7 @@ pub struct PriceHandler<'a> {
     pricebook: &'a PriceBook,
     record_count: usize,
     unmatched_count: usize,
-    fix_count: usize,
+    fixes: Vec<PriceFix>,
 }
 
 impl<'a> PriceHandler<'a> {
@@ -26,7 +26,7 @@ impl<'a> PriceHandler<'a> {
             pricebook,
             record_count: 0,
             unmatched_count: 0,
-            fix_count: 0,
+            fixes: Vec::new(),
         }
     }
 }
@@ -62,11 +62,15 @@ impl Handler for PriceHandler<'_> {
         let ratio = sell / reference.original_price;
         let fix = !(0.98..=1.02).contains(&ratio);
         if fix {
-            self.fix_count += 1;
-            info!(
+            debug!(
                 "{key} Original Cena: {} Nova Cena: {sell:.2}",
                 reference.original_price
             );
+            self.fixes.push(PriceFix {
+                sku: key,
+                original_price: reference.original_price,
+                new_price: sell,
+            });
         }
 
         Ok(Some(WriteRow::Price { buy, sell, fix }))
@@ -75,13 +79,17 @@ impl Handler for PriceHandler<'_> {
     fn finish(&mut self, source_name: &str) -> SourceReport {
         info!(
             "{source_name}: processed {} records, {} not in pricebook, {} need a price fix",
-            self.record_count, self.unmatched_count, self.fix_count
+            self.record_count,
+            self.unmatched_count,
+            self.fixes.len()
         );
         SourceReport {
             supplier: source_name.to_string(),
             records: self.record_count,
             excluded: 0, // run_source overwrites this with the real count
             errors: Vec::new(),
+            // Moved out, not cloned - the handler is dropped right after finish.
+            price_fixes: std::mem::take(&mut self.fixes),
         }
     }
 }

@@ -30,6 +30,7 @@ impl Handler for StockHandler {
             records: self.record_count,
             excluded: 0, // run_source overwrites this with the real count
             errors: Vec::new(),
+            price_fixes: Vec::new(),
         }
     }
 }

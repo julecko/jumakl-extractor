@@ -11,7 +11,7 @@ pub struct Cli {
     #[arg(long, value_enum)]
     pub extract: Option<ExtractKind>,
 
-    /// Only run these specific sources, comma-separated (e.g. automax,supplier_b).
+    /// Only run these specific sources, comma-separated (e.g. supplier_a,supplier_b).
     /// If omitted, all sources in the config are run.
     #[arg(long, value_delimiter = ',')]
     pub sources: Option<Vec<String>>,
