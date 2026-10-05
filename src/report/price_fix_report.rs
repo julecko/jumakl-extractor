@@ -74,6 +74,7 @@ fn render_row(template: &str, fix: &PriceFix) -> String {
         .replace("{{ORIGINAL}}", &format!("{:.2}", fix.original_price))
         .replace("{{NEW}}", &format!("{:.2}", fix.new_price))
         .replace("{{CHANGE}}", &change_percent(fix))
+        .replace("{{CHANGE_COLOR}}", change_color(fix))
 }
 
 /// Change from the original to the new price, e.g. "+12.5%".
@@ -85,6 +86,18 @@ fn change_percent(fix: &PriceFix) -> String {
         "{:+.1}%",
         (fix.new_price / fix.original_price - 1.0) * 100.0
     )
+}
+
+/// Green when the new price is higher, red when lower (matches the legend in
+/// mail.html). Grey when there's no original price to compare against.
+fn change_color(fix: &PriceFix) -> &'static str {
+    if fix.original_price == 0.0 {
+        "#6b7280"
+    } else if fix.new_price >= fix.original_price {
+        "#15803d"
+    } else {
+        "#b91c1c"
+    }
 }
 
 fn read_template(folder: &Path, name: &str) -> Result<String> {
@@ -123,6 +136,8 @@ mod tests {
 
         assert!(html.contains("AM - 6285"));
         assert!(html.contains("-7.6%"));
+        // 3.75 is lower than 4.06, so the change is red.
+        assert!(html.contains("#b91c1c"));
         assert!(!html.contains("Clean"));
         assert!(!html.contains("{{"), "unfilled placeholder left in mail");
     }

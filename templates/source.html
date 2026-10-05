@@ -1,8 +1,16 @@
-<div class="source {{STATUS}}">
-  <div class="source-top">
-    <span class="source-name">{{SUPPLIER}}</span>
-    <span class="source-badge"><span class="badge badge-{{STATUS}}">{{ERROR_COUNT}} error(s)</span></span>
-  </div>
-  <p class="source-meta">{{RECORDS}} record(s) processed, {{EXCLUDED}} excluded</p>
-  {{ERRORS}}
-</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb; border-left:4px solid {{TONE_ACCENT}}; border-radius:8px; margin-bottom:12px;">
+  <tr>
+    <td style="padding:14px 16px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="font-size:14px; font-weight:700; color:#111827;">{{SUPPLIER}}</td>
+          <td align="right" style="white-space:nowrap;">
+            <span style="display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; background:{{TONE_BG}}; color:{{TONE_TEXT}};">{{ERROR_COUNT}} error(s)</span>
+          </td>
+        </tr>
+      </table>
+      <div style="margin-top:4px; font-size:12px; color:#6b7280;">{{RECORDS}} record(s) processed, {{EXCLUDED}} excluded</div>
+      {{ERRORS}}
+    </td>
+  </tr>
+</table>
