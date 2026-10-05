@@ -115,6 +115,28 @@ pub(crate) fn coerce(raw: &str, field_type: FieldType) -> Result<Value> {
     })
 }
 
+/// Stores one parsed cell under the configured field name: sku, stock (kept as
+/// text until the rules have run), price, or an extra field. Shared by every
+/// FormatParser, so the meaning of field names lives in one place.
+pub(crate) fn assign_field(
+    field_name: &str,
+    text: &str,
+    field_type: FieldType,
+    sku: &mut Option<String>,
+    value: &mut Option<RecordValue>,
+    extras: &mut HashMap<String, String>,
+) -> Result<()> {
+    match field_name {
+        "stock" => *value = Some(RecordValue::StockText(text.trim().to_string())),
+        "sku" => *sku = Some(coerce(text, field_type)?.into_string()),
+        "price" => *value = Some(RecordValue::Price(coerce(text, field_type)?.into_f64()?)),
+        other => {
+            extras.insert(other.to_string(), coerce(text, field_type)?.into_string());
+        }
+    }
+    Ok(())
+}
+
 impl Value {
     /// "sku" is always treated as a plain string regardless of configured type.
     pub(crate) fn into_string(self) -> String {

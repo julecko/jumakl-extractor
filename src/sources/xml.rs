@@ -4,7 +4,7 @@ use quick_xml::escape::unescape;
 use quick_xml::events::Event;
 use std::collections::HashMap;
 
-use super::{FormatParser, Record, RecordValue, coerce};
+use super::{FormatParser, Record, RecordValue, assign_field};
 use crate::config::{FieldMapping, XmlConfig};
 
 impl FormatParser for XmlConfig {
@@ -116,23 +116,7 @@ fn apply_field(
     let Some((field_name, mapping)) = field else {
         return Ok(());
     };
+    let field_name = field_name.as_str();
 
-    // Stock stays text until the rules have run; see Record::finish.
-    match field_name.as_str() {
-        "stock" => *value = Some(RecordValue::StockText(text.trim().to_string())),
-        "sku" => *sku = Some(coerce(text, mapping.r#type)?.into_string()),
-        "price" => {
-            *value = Some(RecordValue::Price(
-                coerce(text, mapping.r#type)?.into_f64()?,
-            ))
-        }
-        other => {
-            extras.insert(
-                other.to_string(),
-                coerce(text, mapping.r#type)?.into_string(),
-            );
-        }
-    }
-
-    Ok(())
+    assign_field(field_name, text, mapping.r#type, sku, value, extras)
 }
