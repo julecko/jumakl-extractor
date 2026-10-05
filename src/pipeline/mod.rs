@@ -216,6 +216,20 @@ fn run_source(
     let prefix = source.prefix.as_str();
     let rules = rules::build(&source.rules);
     let parse_result = sources::parse_source(&content, source, &mut |mut record| {
+        // Rules first, so exclusions and the handler see the final SKU and quantity.
+        for rule in &rules {
+            if let Err(err) = rule.apply(&mut record) {
+                tracing::warn!("rule failed (sku={}): {err:#}", record.sku);
+                external_errors.push(format!("rule failed (sku={}): {err:#}", record.sku));
+                return Ok(());
+            }
+        }
+        if let Err(err) = record.finish() {
+            tracing::warn!("invalid value (sku={}): {err:#}", record.sku);
+            external_errors.push(format!("invalid value (sku={}): {err:#}", record.sku));
+            return Ok(());
+        }
+
         if sku_exclusions
             .iter()
             .any(|pattern| pattern.is_match(&record.sku))
@@ -223,14 +237,6 @@ fn run_source(
             tracing::debug!("skipping excluded sku (sku={})", record.sku);
             excluded_count += 1;
             return Ok(());
-        }
-
-        for rule in &rules {
-            if let Err(err) = rule.apply(&mut record) {
-                tracing::warn!("rule failed (sku={}): {err:#}", record.sku);
-                external_errors.push(format!("rule failed (sku={}): {err:#}", record.sku));
-                return Ok(());
-            }
         }
 
         match handler.on_record(&record) {

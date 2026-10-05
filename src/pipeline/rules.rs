@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use std::collections::HashMap;
 
 use super::price::VAT;
 use crate::config::RuleConfig;
@@ -26,6 +27,14 @@ pub fn build(configs: &[RuleConfig]) -> Vec<Box<dyn RecordRule>> {
                     field: field.clone(),
                     when: when.clone(),
                     factor: *factor,
+                }),
+                RuleConfig::SkuSubstring { start, drop_end } => Box::new(SkuSubstring {
+                    start: *start,
+                    drop_end: *drop_end,
+                }),
+                RuleConfig::QuantityMap { map, default } => Box::new(QuantityMap {
+                    map: map.clone(),
+                    default: default.clone(),
                 }),
             }
         })
@@ -63,10 +72,58 @@ impl RecordRule for DiscountMultiplier {
     }
 }
 
+/// Keeps the characters from `start` up to `drop_end` from the end of the SKU.
+struct SkuSubstring {
+    start: usize,
+    drop_end: usize,
+}
+
+impl RecordRule for SkuSubstring {
+    fn apply(&self, record: &mut Record) -> Result<()> {
+        let chars: Vec<char> = record.sku.chars().collect();
+        // TODO: decide what a short SKU should do. massExtraction clears the SKU
+        // and still writes the row (with an empty SKU) and only alerts on the
+        // console. For now the SKU is left unchanged.
+        if chars.len() < self.start + self.drop_end {
+            tracing::debug!(
+                "sku '{}' is too short for the sku_substring rule, leaving it unchanged",
+                record.sku
+            );
+            return Ok(());
+        }
+        record.sku = chars[self.start..chars.len() - self.drop_end]
+            .iter()
+            .collect();
+        Ok(())
+    }
+}
+
+/// Replaces a stock quantity using `map`, falling back to `default` when set.
+struct QuantityMap {
+    map: HashMap<String, String>,
+    default: Option<String>,
+}
+
+impl RecordRule for QuantityMap {
+    fn apply(&self, record: &mut Record) -> Result<()> {
+        let RecordValue::StockText(text) = &mut record.value else {
+            bail!("quantity_map rule received a non-stock record");
+        };
+
+        let replacement = self.map.get(text.trim()).or(self.default.as_ref()).cloned();
+        if let Some(replacement) = replacement {
+            *text = replacement;
+        }
+        Ok(())
+    }
+}
+
 fn price_mut(record: &mut Record) -> Result<&mut f64> {
     match &mut record.value {
         RecordValue::Price(price) => Ok(price),
-        RecordValue::Stock(_) => bail!("price rule received a stock record"),
+        RecordValue::Stock(_) | RecordValue::StockText(_) => {
+            bail!("price rule received a stock record")
+        }
     }
 }
 
@@ -78,7 +135,6 @@ fn round2(value: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     fn price_record(price: f64, extras: &[(&str, &str)]) -> Record {
         Record {
@@ -87,7 +143,15 @@ mod tests {
             extras: extras
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.to_string()))
-                .collect::<HashMap<_, _>>(),
+                .collect(),
+        }
+    }
+
+    fn stock_record(sku: &str, quantity: &str) -> Record {
+        Record {
+            sku: sku.to_string(),
+            value: RecordValue::StockText(quantity.to_string()),
+            extras: HashMap::new(),
         }
     }
 
@@ -136,15 +200,72 @@ mod tests {
 
     #[test]
     fn price_rules_reject_stock_records() {
-        let mut record = Record {
-            sku: "X".to_string(),
-            value: RecordValue::Stock(3),
-            extras: HashMap::new(),
-        };
+        let mut record = stock_record("X", "3");
         assert!(
             build(&[RuleConfig::RemoveVat])[0]
                 .apply(&mut record)
                 .is_err()
         );
+    }
+
+    #[test]
+    fn sku_substring_keeps_the_middle_of_the_sku() {
+        // 15 characters: start 9, drop the last 3 -> "MID"
+        let mut record = stock_record("AAAAAAAAAMID123", "1");
+        build(&[RuleConfig::SkuSubstring {
+            start: 9,
+            drop_end: 3,
+        }])[0]
+            .apply(&mut record)
+            .unwrap();
+        assert_eq!(record.sku, "MID");
+    }
+
+    #[test]
+    fn sku_substring_leaves_a_short_sku_unchanged() {
+        let mut record = stock_record("SHORT", "1");
+        build(&[RuleConfig::SkuSubstring {
+            start: 9,
+            drop_end: 3,
+        }])[0]
+            .apply(&mut record)
+            .unwrap();
+        assert_eq!(record.sku, "SHORT");
+    }
+
+    #[test]
+    fn quantity_map_uses_default_for_unlisted_values() {
+        let map: HashMap<String, String> = [("true", "1000"), ("3", "1000")]
+            .iter()
+            .map(|(key, value)| (key.to_string(), value.to_string()))
+            .collect();
+        let rule = build(&[RuleConfig::QuantityMap {
+            map,
+            default: Some("0".to_string()),
+        }]);
+
+        let mut listed = stock_record("X", "true");
+        rule[0].apply(&mut listed).unwrap();
+        listed.finish().unwrap();
+        assert_eq!(listed.value.as_stock(), Some(1000));
+
+        let mut unlisted = stock_record("X", "5");
+        rule[0].apply(&mut unlisted).unwrap();
+        unlisted.finish().unwrap();
+        assert_eq!(unlisted.value.as_stock(), Some(0));
+    }
+
+    #[test]
+    fn quantity_map_without_default_leaves_unlisted_values() {
+        let map: HashMap<String, String> = [("1", "2")]
+            .iter()
+            .map(|(key, value)| (key.to_string(), value.to_string()))
+            .collect();
+        let rule = build(&[RuleConfig::QuantityMap { map, default: None }]);
+
+        let mut record = stock_record("X", "5");
+        rule[0].apply(&mut record).unwrap();
+        record.finish().unwrap();
+        assert_eq!(record.value.as_stock(), Some(5));
     }
 }

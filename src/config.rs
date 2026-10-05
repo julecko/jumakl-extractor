@@ -86,23 +86,33 @@ pub struct SourceConfig {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RuleConfig {
-    /// Divides the price by 1.23 and rounds to two decimals.
+    /// Divides the price by 1.23 and rounds to two decimals. Price only.
     RemoveVat,
-    /// Multiplies the price by `factor` when the extra field `field` equals `when`.
+    /// Multiplies the price by `factor` when the extra field `field` equals `when`. Price only.
     DiscountMultiplier {
         field: String,
         when: String,
         factor: f64,
     },
+    /// Keeps the part of the SKU from `start` up to `drop_end` characters from
+    /// the end. Fails when the SKU is too short. Stock only.
+    SkuSubstring { start: usize, drop_end: usize },
+    /// Replaces a quantity by its entry in `map`. Values not in `map` become
+    /// `default`, or stay as they are when there's no default. Stock only.
+    QuantityMap {
+        map: HashMap<String, String>,
+        #[serde(default)]
+        default: Option<String>,
+    },
 }
 
 impl RuleConfig {
-    /// Price rules can't be applied to stock records.
-    pub fn is_price_only(&self) -> bool {
-        matches!(
-            self,
-            RuleConfig::RemoveVat | RuleConfig::DiscountMultiplier { .. }
-        )
+    /// The extract mode this rule belongs to. Rules can't run in the other mode.
+    pub fn applies_to(&self) -> ExtractKind {
+        match self {
+            RuleConfig::RemoveVat | RuleConfig::DiscountMultiplier { .. } => ExtractKind::Price,
+            RuleConfig::SkuSubstring { .. } | RuleConfig::QuantityMap { .. } => ExtractKind::Stock,
+        }
     }
 }
 
@@ -210,10 +220,11 @@ impl Config {
             }
 
             for rule in &source.rules {
-                if kind == ExtractKind::Stock && rule.is_price_only() {
+                if rule.applies_to() != kind {
                     bail!(
-                        "source '{}' uses a price rule, which only applies to price extraction",
-                        source.name
+                        "source '{}' has a {:?} rule, which doesn't apply to {kind:?} extraction",
+                        source.name,
+                        rule.applies_to()
                     );
                 }
                 if let RuleConfig::DiscountMultiplier { field, .. } = rule

@@ -117,14 +117,20 @@ fn apply_field(
         return Ok(());
     };
 
-    let coerced = coerce(text, mapping.r#type)?;
-
+    // Stock stays text until the rules have run; see Record::finish.
     match field_name.as_str() {
-        "sku" => *sku = Some(coerced.into_string()),
-        "stock" => *value = Some(RecordValue::Stock(coerced.into_i64()?)),
-        "price" => *value = Some(RecordValue::Price(coerced.into_f64()?)),
+        "stock" => *value = Some(RecordValue::StockText(text.trim().to_string())),
+        "sku" => *sku = Some(coerce(text, mapping.r#type)?.into_string()),
+        "price" => {
+            *value = Some(RecordValue::Price(
+                coerce(text, mapping.r#type)?.into_f64()?,
+            ))
+        }
         other => {
-            extras.insert(other.to_string(), coerced.into_string());
+            extras.insert(
+                other.to_string(),
+                coerce(text, mapping.r#type)?.into_string(),
+            );
         }
     }
 

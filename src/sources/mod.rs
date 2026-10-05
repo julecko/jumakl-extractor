@@ -36,6 +36,9 @@ pub struct Record {
 #[derive(Debug, Clone)]
 pub enum RecordValue {
     Stock(i64),
+    /// A stock quantity still as the feed wrote it. Rules can rewrite it
+    /// (e.g. "true" -> "1000") before `Record::finish` turns it into a number.
+    StockText(String),
     Price(f64),
 }
 
@@ -43,15 +46,34 @@ impl RecordValue {
     pub fn as_stock(&self) -> Option<i64> {
         match self {
             RecordValue::Stock(n) => Some(*n),
-            RecordValue::Price(_) => None,
+            RecordValue::StockText(_) | RecordValue::Price(_) => None,
         }
     }
 
     pub fn as_price(&self) -> Option<f64> {
         match self {
             RecordValue::Price(p) => Some(*p),
-            RecordValue::Stock(_) => None,
+            RecordValue::Stock(_) | RecordValue::StockText(_) => None,
         }
+    }
+}
+
+impl Record {
+    /// Turns a stock quantity from text into a number. Runs after the rules,
+    /// so they can still work on the text. Price records are left as they are.
+    pub fn finish(&mut self) -> Result<()> {
+        let number = match &self.value {
+            RecordValue::StockText(text) => Some(
+                text.trim()
+                    .parse::<i64>()
+                    .with_context(|| format!("'{text}' is not an integer quantity"))?,
+            ),
+            RecordValue::Stock(_) | RecordValue::Price(_) => None,
+        };
+        if let Some(number) = number {
+            self.value = RecordValue::Stock(number);
+        }
+        Ok(())
     }
 }
 
@@ -100,18 +122,6 @@ impl Value {
             Value::String(s) | Value::Date(s) => s,
             Value::Integer(n) => n.to_string(),
             Value::Decimal(f) => f.to_string(),
-        }
-    }
-
-    /// For "stock" - the config may declare it integer or decimal, RecordValue always wants i64.
-    pub(crate) fn into_i64(self) -> Result<i64> {
-        match self {
-            Value::Integer(n) => Ok(n),
-            Value::Decimal(f) => Ok(f as i64),
-            Value::String(s) | Value::Date(s) => s
-                .trim()
-                .parse()
-                .with_context(|| format!("'{s}' is not an integer")),
         }
     }
 
