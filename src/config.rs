@@ -72,13 +72,28 @@ pub struct SourceConfig {
     pub auth: Option<AuthConfig>,
     pub fields: HashMap<String, FieldMapping>,
 
-    /// Supplier's price includes VAT, which price analysis divides out before
-    /// comparing. Only used by --extract price.
+    /// Adjustments applied to each record before the handler sees it, in the
+    /// order listed. Only used by --extract price.
     #[serde(default)]
-    pub price_includes_vat: bool,
+    pub hooks: Vec<HookConfig>,
 
     #[serde(flatten)]
     pub format_config: FormatConfig,
+}
+
+/// One adjustment to a source's records. The `kind` names a generic operation;
+/// all supplier-specific values (field names, labels, factors) come from config.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum HookConfig {
+    /// Divides the price by 1.23 and rounds to two decimals.
+    RemoveVat,
+    /// Multiplies the price by `factor` when the extra field `field` equals `when`.
+    DiscountMultiplier {
+        field: String,
+        when: String,
+        factor: f64,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -182,6 +197,23 @@ impl Config {
                     "source '{}' is missing mandatory field '{kind_field}' for {kind:?} extraction",
                     source.name
                 );
+            }
+
+            if !source.hooks.is_empty() && kind == ExtractKind::Stock {
+                bail!(
+                    "source '{}' has hooks, which only apply to price extraction",
+                    source.name
+                );
+            }
+            for hook in &source.hooks {
+                if let HookConfig::DiscountMultiplier { field, .. } = hook
+                    && !source.fields.contains_key(field)
+                {
+                    bail!(
+                        "source '{}' has a discount hook for field '{field}', which is not in its fields",
+                        source.name
+                    );
+                }
             }
         }
 

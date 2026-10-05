@@ -1,3 +1,4 @@
+mod hooks;
 mod price;
 mod stock;
 
@@ -213,7 +214,8 @@ fn run_source(
 
     let shortname = source.shortname.as_str();
     let prefix = source.prefix.as_str();
-    let parse_result = sources::parse_source(&content, source, &mut |record| {
+    let hooks = hooks::build(&source.hooks);
+    let parse_result = sources::parse_source(&content, source, &mut |mut record| {
         if sku_exclusions
             .iter()
             .any(|pattern| pattern.is_match(&record.sku))
@@ -221,6 +223,14 @@ fn run_source(
             tracing::debug!("skipping excluded sku (sku={})", record.sku);
             excluded_count += 1;
             return Ok(());
+        }
+
+        for hook in &hooks {
+            if let Err(err) = hook.apply(&mut record) {
+                tracing::warn!("hook failed (sku={}): {err:#}", record.sku);
+                external_errors.push(format!("hook failed (sku={}): {err:#}", record.sku));
+                return Ok(());
+            }
         }
 
         match handler.on_record(&record) {

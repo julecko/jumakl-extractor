@@ -18,6 +18,9 @@ pub enum Value {
 pub struct Record {
     pub sku: String,
     pub value: RecordValue,
+    /// Other configured fields (e.g. a discount flag), keyed by field name.
+    /// Empty unless the source maps extra fields.
+    pub extras: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone)]

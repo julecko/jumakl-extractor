@@ -22,6 +22,7 @@ impl FormatParser for XmlConfig {
         let mut in_record = false;
         let mut sku: Option<String> = None;
         let mut value: Option<RecordValue> = None;
+        let mut extras: HashMap<String, String> = HashMap::new();
         let mut current_tag: Vec<u8> = Vec::new();
 
         loop {
@@ -34,6 +35,7 @@ impl FormatParser for XmlConfig {
                         in_record = true;
                         sku = None;
                         value = None;
+                        extras.clear();
                     }
                     current_tag = tag.to_vec();
                 }
@@ -45,7 +47,14 @@ impl FormatParser for XmlConfig {
 
                     let decoded = e.decode().context("invalid xml text encoding")?;
                     let text = unescape(&decoded).context("invalid xml entity")?;
-                    apply_field(&text, &current_tag, fields, &mut sku, &mut value)?;
+                    apply_field(
+                        &text,
+                        &current_tag,
+                        fields,
+                        &mut sku,
+                        &mut value,
+                        &mut extras,
+                    )?;
                 }
 
                 Event::CData(e) => {
@@ -55,14 +64,25 @@ impl FormatParser for XmlConfig {
 
                     // CDATA is raw by definition - no entity unescaping, unlike Text.
                     let text = e.decode().context("invalid xml cdata encoding")?;
-                    apply_field(&text, &current_tag, fields, &mut sku, &mut value)?;
+                    apply_field(
+                        &text,
+                        &current_tag,
+                        fields,
+                        &mut sku,
+                        &mut value,
+                        &mut extras,
+                    )?;
                 }
 
                 Event::End(e) => {
                     if e.name().into_inner() == record_tag {
                         in_record = false;
                         match (sku.take(), value.take()) {
-                            (Some(sku), Some(value)) => on_record(Record { sku, value })?,
+                            (Some(sku), Some(value)) => on_record(Record {
+                                sku,
+                                value,
+                                extras: std::mem::take(&mut extras),
+                            })?,
                             _ => tracing::warn!(
                                 "skipping <{}> element missing sku and/or value",
                                 self.xml.record_tag
@@ -81,12 +101,14 @@ impl FormatParser for XmlConfig {
 
 /// Shared by both Event::Text and Event::CData: look up which configured
 /// field the current tag maps to, coerce the decoded text, and store it.
+/// Fields other than sku and value are kept as extras.
 fn apply_field(
     text: &str,
     current_tag: &[u8],
     fields: &HashMap<String, FieldMapping>,
     sku: &mut Option<String>,
     value: &mut Option<RecordValue>,
+    extras: &mut HashMap<String, String>,
 ) -> Result<()> {
     let field = fields
         .iter()
@@ -101,7 +123,9 @@ fn apply_field(
         "sku" => *sku = Some(coerced.into_string()),
         "stock" => *value = Some(RecordValue::Stock(coerced.into_i64()?)),
         "price" => *value = Some(RecordValue::Price(coerced.into_f64()?)),
-        _ => {}
+        other => {
+            extras.insert(other.to_string(), coerced.into_string());
+        }
     }
 
     Ok(())

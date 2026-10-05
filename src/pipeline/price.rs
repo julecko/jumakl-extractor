@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 use super::{Handler, PriceFix, SourceReport};
 use crate::config::SourceConfig;
@@ -7,7 +7,7 @@ use crate::output::WriteRow;
 use crate::pricebook::{PriceBook, PriceReference};
 use crate::sources::Record;
 
-const VAT: f64 = 1.23;
+pub const VAT: f64 = 1.23;
 
 /// Compares each supplier price with our PriceBook price and derives buy, sell,
 /// and the fix flag. Records whose SKU isn't in the PriceBook are skipped (Ok(None)).
@@ -39,14 +39,8 @@ impl Handler for PriceHandler<'_> {
             bail!("PriceHandler received a non-price record");
         };
 
-        // TODO: discount flag (source label "Nepodlieha_zlave"). When it is
-        // "0", the supplier price should be multiplied by 0.8 before removing VAT.
-        // Record doesn't carry that field yet, so the discount is not applied.
-        let buy = if self.source.price_includes_vat {
-            round2(supplier_price / VAT)
-        } else {
-            supplier_price
-        };
+        // Source hooks have already adjusted the price, so it's the buy price.
+        let buy = supplier_price;
 
         // The PriceBook keys include the prefix, e.g. "PRE - 6285".
         let key = format!("{} - {}", self.source.prefix, record.sku);
@@ -106,11 +100,6 @@ fn sell_price(buy: f64, reference: &PriceReference) -> f64 {
     profit * VAT
 }
 
-/// Rounds to two decimal places.
-fn round2(value: f64) -> f64 {
-    format!("{value:.2}").parse().unwrap_or(value)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -135,10 +124,5 @@ mod tests {
         // (1 + 10 * (1000 - 900) / 100) * 1.23
         let sell = sell_price(10.0, &reference(1.0, 900.0));
         assert!((sell - 13.53).abs() < 1e-9);
-    }
-
-    #[test]
-    fn round2_matches_two_decimal_formatting() {
-        assert_eq!(round2(4.06 / VAT), 3.30);
     }
 }

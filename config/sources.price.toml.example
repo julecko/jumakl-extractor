@@ -3,8 +3,6 @@ name = "automax"
 url = "https://www.example.com/export/products.xml"
 format = "xml"
 
-price_includes_vat = true
-
 [sources.xml]
 record_tag = "Produkt"
 
@@ -12,6 +10,18 @@ record_tag = "Produkt"
 sku = { selector = "SKU" }
 price = { selector = "Price", type = "decimal" }
 name = { selector = "Name" }
+discount = { selector = "DiscountFlag" }
+
+# Hooks run in order, applied to each price record (see src/pipeline/hooks.rs
+# for the available kinds). Here the discount applies before VAT is removed.
+[[sources.hooks]]
+kind = "discount_multiplier"
+field = "discount"
+when = "0"
+factor = 0.8
+
+[[sources.hooks]]
+kind = "remove_vat"
 
 
 [[sources]]
