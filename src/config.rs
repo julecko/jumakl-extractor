@@ -127,6 +127,7 @@ pub struct AuthConfig {
 pub enum FormatConfig {
     Xml(XmlConfig),
     Csv(CsvConfig),
+    Attributes(AttributesConfig),
 }
 
 impl FormatConfig {
@@ -136,8 +137,21 @@ impl FormatConfig {
         match self {
             FormatConfig::Xml(cfg) => cfg,
             FormatConfig::Csv(cfg) => cfg,
+            FormatConfig::Attributes(cfg) => cfg,
         }
     }
+}
+
+/// Feeds where each record is an element and its values are attributes, e.g.
+/// `<Item Code="A1" Qty="5" />`. Field selectors name the attributes.
+#[derive(Debug, Deserialize)]
+pub struct AttributesConfig {
+    pub attributes: AttributesOptions,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AttributesOptions {
+    pub record_tag: String,
 }
 
 #[derive(Debug, Deserialize)]
