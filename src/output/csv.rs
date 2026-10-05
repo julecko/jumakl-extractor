@@ -5,6 +5,7 @@ use std::io::{BufWriter, Write};
 
 use super::{OutputWriter, WriteRow};
 use crate::paths::output_folder_path;
+use crate::sources::prefixed_sku;
 
 fn create_file(filename: &str) -> Result<BufWriter<File>> {
     let path = output_folder_path().join(filename);
@@ -51,8 +52,10 @@ impl OutputWriter for StockCsvWriter {
 
         writeln!(
             self.file,
-            "{};{} - {};{n};{}",
-            shortname, prefix, sku, self.date
+            "{};{};{n};{}",
+            shortname,
+            prefixed_sku(prefix, sku),
+            self.date
         )?;
         Ok(())
     }
@@ -85,10 +88,13 @@ impl OutputWriter for PriceCsvWriter {
             anyhow::bail!("PriceCsvWriter received a non-price row");
         };
 
-        // Prefixed SKU, two-decimal prices,
-        // and Yes/No for the fix flag.
+        // Prefixed SKU, two-decimal prices, and Yes/No for the fix flag.
         let fix = if *fix { "Yes" } else { "No" };
-        writeln!(self.file, "{prefix} - {sku};{buy:.2};{sell:.2};{fix}")?;
+        writeln!(
+            self.file,
+            "{};{buy:.2};{sell:.2};{fix}",
+            prefixed_sku(prefix, sku)
+        )?;
         Ok(())
     }
 }

@@ -6,6 +6,16 @@ use std::collections::HashMap;
 
 use crate::config::{FieldMapping, FieldType, SourceConfig};
 
+/// The SKU as exported and as keyed in the PriceBook: `PREFIX - SKU`, or just
+/// the SKU when the source has no prefix.
+pub fn prefixed_sku(prefix: &str, sku: &str) -> String {
+    if prefix.is_empty() {
+        sku.to_string()
+    } else {
+        format!("{prefix} - {sku}")
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Value {
     String(String),

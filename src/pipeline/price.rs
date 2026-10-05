@@ -5,7 +5,7 @@ use super::{Handler, PriceFix, SourceReport};
 use crate::config::SourceConfig;
 use crate::output::WriteRow;
 use crate::pricebook::{PriceBook, PriceReference};
-use crate::sources::Record;
+use crate::sources::{Record, prefixed_sku};
 
 pub const VAT: f64 = 1.23;
 
@@ -43,7 +43,7 @@ impl Handler for PriceHandler<'_> {
         let buy = supplier_price;
 
         // The PriceBook keys include the prefix, e.g. "PRE - 6285".
-        let key = format!("{} - {}", self.source.prefix, record.sku);
+        let key = prefixed_sku(&self.source.prefix, &record.sku);
         let Some(reference) = self.pricebook.get(&key) else {
             debug!("sku not in pricebook, skipping (sku={key})");
             self.unmatched_count += 1;
