@@ -72,20 +72,20 @@ pub struct SourceConfig {
     pub auth: Option<AuthConfig>,
     pub fields: HashMap<String, FieldMapping>,
 
-    /// Adjustments applied to each record before the handler sees it, in the
-    /// order listed. Only used by --extract price.
+    /// Rules applied to each record, in the order listed. Only used by
+    /// --extract price.
     #[serde(default)]
-    pub hooks: Vec<HookConfig>,
+    pub rules: Vec<RuleConfig>,
 
     #[serde(flatten)]
     pub format_config: FormatConfig,
 }
 
-/// One adjustment to a source's records. The `kind` names a generic operation;
-/// all supplier-specific values (field names, labels, factors) come from config.
+/// One rule. The `kind` names a generic operation; field names, labels and
+/// factors come from the rule's own config, never from code.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum HookConfig {
+pub enum RuleConfig {
     /// Divides the price by 1.23 and rounds to two decimals.
     RemoveVat,
     /// Multiplies the price by `factor` when the extra field `field` equals `when`.
@@ -94,6 +94,16 @@ pub enum HookConfig {
         when: String,
         factor: f64,
     },
+}
+
+impl RuleConfig {
+    /// Price rules can't be applied to stock records.
+    pub fn is_price_only(&self) -> bool {
+        matches!(
+            self,
+            RuleConfig::RemoveVat | RuleConfig::DiscountMultiplier { .. }
+        )
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -199,18 +209,18 @@ impl Config {
                 );
             }
 
-            if !source.hooks.is_empty() && kind == ExtractKind::Stock {
-                bail!(
-                    "source '{}' has hooks, which only apply to price extraction",
-                    source.name
-                );
-            }
-            for hook in &source.hooks {
-                if let HookConfig::DiscountMultiplier { field, .. } = hook
+            for rule in &source.rules {
+                if kind == ExtractKind::Stock && rule.is_price_only() {
+                    bail!(
+                        "source '{}' uses a price rule, which only applies to price extraction",
+                        source.name
+                    );
+                }
+                if let RuleConfig::DiscountMultiplier { field, .. } = rule
                     && !source.fields.contains_key(field)
                 {
                     bail!(
-                        "source '{}' has a discount hook for field '{field}', which is not in its fields",
+                        "source '{}' has a discount rule for field '{field}', which is not in its fields",
                         source.name
                     );
                 }

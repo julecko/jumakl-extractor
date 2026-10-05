@@ -39,7 +39,7 @@ impl Handler for PriceHandler<'_> {
             bail!("PriceHandler received a non-price record");
         };
 
-        // Source hooks have already adjusted the price, so it's the buy price.
+        // Source rules have already adjusted the price, so it's the buy price.
         let buy = supplier_price;
 
         // The PriceBook keys include the prefix, e.g. "PRE - 6285".

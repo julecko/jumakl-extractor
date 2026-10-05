@@ -12,16 +12,17 @@ price = { selector = "Price", type = "decimal" }
 name = { selector = "Name" }
 discount = { selector = "DiscountFlag" }
 
-# Hooks run in order, applied to each price record (see src/pipeline/hooks.rs
-# for the available kinds). Here the discount applies before VAT is removed.
-[[sources.hooks]]
+# Rules run in order, applied to each price record. Here the discount applies
+# before VAT is removed.
+[[sources.rules]]
 kind = "discount_multiplier"
 field = "discount"
 when = "0"
 factor = 0.8
 
-[[sources.hooks]]
+[[sources.rules]]
 kind = "remove_vat"
+
 
 
 [[sources]]
