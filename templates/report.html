@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="sk">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Extraction report</title>
+<title>Report extrakcie</title>
 </head>
 <body style="margin:0; padding:0; background:#ffffff; font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#1f2328;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -12,8 +12,8 @@
     <tr>
       <td style="background:#111827; color:#ffffff; padding:28px 32px;">
         <div style="font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#9ca3af;">jumakl-extractor</div>
-        <div style="font-size:22px; font-weight:700; margin-top:6px;">Extraction report</div>
-        <div style="font-size:13px; color:#d1d5db; margin-top:6px;">Completed in {{ELAPSED}}</div>
+        <div style="font-size:22px; font-weight:700; margin-top:6px;">Report extrakcie</div>
+        <div style="font-size:13px; color:#d1d5db; margin-top:6px;">Dokončené za {{ELAPSED}}</div>
       </td>
     </tr>
 
@@ -38,19 +38,19 @@
           <tr>
             <td width="25%" align="center" style="padding:20px 8px; border-right:1px solid #f0f1f3;">
               <div style="font-size:26px; font-weight:700; line-height:1.2; color:#111827;">{{SOURCE_COUNT}}</div>
-              <div style="font-size:11px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; color:#9ca3af; margin-top:2px;">Sources</div>
+              <div style="font-size:11px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; color:#9ca3af; margin-top:2px;">Zdroje</div>
             </td>
             <td width="25%" align="center" style="padding:20px 8px; border-right:1px solid #f0f1f3;">
               <div style="font-size:26px; font-weight:700; line-height:1.2; color:#111827;">{{RECORD_COUNT}}</div>
-              <div style="font-size:11px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; color:#9ca3af; margin-top:2px;">Records</div>
+              <div style="font-size:11px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; color:#9ca3af; margin-top:2px;">Záznamy</div>
             </td>
             <td width="25%" align="center" style="padding:20px 8px; border-right:1px solid #f0f1f3;">
               <div style="font-size:26px; font-weight:700; line-height:1.2; color:#111827;">{{EXCLUDED_COUNT}}</div>
-              <div style="font-size:11px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; color:#9ca3af; margin-top:2px;">Excluded</div>
+              <div style="font-size:11px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; color:#9ca3af; margin-top:2px;">Vylúčené</div>
             </td>
             <td width="25%" align="center" style="padding:20px 8px;">
               <div style="font-size:26px; font-weight:700; line-height:1.2; color:#111827;">{{ERROR_COUNT}}</div>
-              <div style="font-size:11px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; color:#9ca3af; margin-top:2px;">Errors</div>
+              <div style="font-size:11px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; color:#9ca3af; margin-top:2px;">Chyby</div>
             </td>
           </tr>
         </table>
@@ -60,7 +60,7 @@
     <!-- Sources -->
     <tr>
       <td style="padding:24px 32px 8px;">
-        <div style="font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#9ca3af; margin-bottom:12px;">By source</div>
+        <div style="font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#9ca3af; margin-bottom:12px;">Podľa zdroja</div>
         {{SOURCES}}
       </td>
     </tr>
@@ -68,7 +68,7 @@
     <!-- Footer -->
     <tr>
       <td align="center" style="padding:20px 32px 28px; font-size:11px; color:#9ca3af;">
-        Automated report from jumakl-extractor
+        Automatický report z jumakl-extractor
       </td>
     </tr>
 

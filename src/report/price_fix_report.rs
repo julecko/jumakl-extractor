@@ -22,7 +22,7 @@ pub fn build(reports: &[SourceReport]) -> Result<Option<PriceFixMail>> {
 
     let supplier_count = reports.iter().filter(|r| !r.price_fixes.is_empty()).count();
     Ok(Some(PriceFixMail {
-        subject: format!("Price fixes - {fix_count} product(s) in {supplier_count} supplier(s)"),
+        subject: format!("Opravy cien – produktov: {fix_count}, dodávateľov: {supplier_count}"),
         html: render(reports)?,
     }))
 }
@@ -113,12 +113,12 @@ mod tests {
     fn renders_fixes_and_skips_suppliers_without_fixes() {
         let reports = vec![
             SourceReport {
-                supplier: "Automax".to_string(),
+                supplier: "Test supplier".to_string(),
                 records: 2,
                 excluded: 0,
                 errors: Vec::new(),
                 price_fixes: vec![PriceFix {
-                    sku: "AM - 6285".to_string(),
+                    sku: "PRE - 6285".to_string(),
                     original_price: 4.06,
                     new_price: 3.75,
                 }],
@@ -134,7 +134,7 @@ mod tests {
 
         let html = render(&reports).expect("price_fix templates should render");
 
-        assert!(html.contains("AM - 6285"));
+        assert!(html.contains("PRE - 6285"));
         assert!(html.contains("-7.6%"));
         // 3.75 is lower than 4.06, so the change is red.
         assert!(html.contains("#b91c1c"));

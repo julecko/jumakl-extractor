@@ -46,7 +46,7 @@ pub struct SourceReport {
 /// Listed in the separate price-fix email.
 #[derive(Debug)]
 pub struct PriceFix {
-    /// Full SKU with the supplier prefix, e.g. "AM - 6285".
+    /// Full SKU with the supplier prefix, e.g. "PRE - 6285".
     pub sku: String,
     pub original_price: f64,
     pub new_price: f64,

@@ -35,7 +35,7 @@ impl Reporter for EmailReporter {
         self.mailer.send_html(
             &self.to,
             format!(
-                "Extraction report - {} source(s), {total_errors} error(s)",
+                "Report extrakcie – zdrojov: {}, chýb: {total_errors}",
                 summary.reports.len()
             ),
             render_html(summary)?,
@@ -117,12 +117,12 @@ fn render_html(summary: &RunSummary) -> Result<String> {
 
     let status_label = if total_errors == 0 {
         format!(
-            "All {} source(s) completed without errors",
+            "Všetky zdroje ({}) prebehli bez chýb",
             summary.reports.len()
         )
     } else {
         format!(
-            "{total_errors} error(s) occurred ({} program, {source_errors} across sources)",
+            "Chyby: {total_errors} (programové: {}, v zdrojoch: {source_errors})",
             summary.program_errors.len()
         )
     };
@@ -189,7 +189,7 @@ mod tests {
         let summary = RunSummary {
             elapsed: Duration::from_secs(3),
             reports: vec![SourceReport {
-                supplier: "Automax".to_string(),
+                supplier: "Test supplier".to_string(),
                 records: 10,
                 excluded: 1,
                 errors: vec!["fetch failed: boom".to_string()],

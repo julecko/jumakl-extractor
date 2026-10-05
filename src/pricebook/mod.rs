@@ -6,14 +6,14 @@ use reqwest::blocking::Client;
 use crate::config::PriceBookConfig;
 use crate::webrequest;
 
-/// Our own price for one SKU, from the PriceBook feed (the 12volt export).
+/// Our own price for one SKU, from the PriceBook feed.
 pub struct PriceReference {
     pub original_price: f64,
     pub profit_euro: f64,
     pub profit_percent: f64,
 }
 
-/// Keyed by the full SKU as the feed writes it, prefix included (e.g. "AM - 6285").
+/// Keyed by the full SKU as the feed writes it, prefix included (e.g. "PRE - 6285").
 pub struct PriceBook(HashMap<String, PriceReference>);
 
 impl PriceBook {
@@ -36,7 +36,7 @@ pub fn load(client: &Client, config: &PriceBookConfig) -> Result<PriceBook> {
 }
 
 /// The feed isn't real XML: each <item> holds bracketed pseudo-tags such as
-/// `[sku]AM - 6285[/sku]`, so it's read as text, the same way the C++ does.
+/// `[sku]PRE - 6285[/sku]`, so it's read as text.
 fn parse(content: &str) -> PriceBook {
     let mut map = HashMap::new();
 
@@ -61,7 +61,7 @@ fn parse(content: &str) -> PriceBook {
             continue;
         };
 
-        // First occurrence wins if the feed lists a SKU twice, as in the C++.
+        // First occurrence wins if the feed lists a SKU twice.
         map.entry(sku.to_string()).or_insert(PriceReference {
             original_price,
             profit_euro,
@@ -98,26 +98,26 @@ mod tests {
     #[test]
     fn parses_bracketed_items() {
         let feed = "<rss><channel>\
-            <item>\n [sku]AM - 6285[/sku]\n [price]4.06[/price]\n \
+            <item>\n [sku]PRE - 6285[/sku]\n [price]4.06[/price]\n \
             [price_nakup]1.27[/price_nakup]\n \
             [price_zisk_euro]2.000000[/price_zisk_euro]\n \
             [price_zisk_percent]5.000000[/price_zisk_percent]\n</item>\
-            <item>[sku]AM - 1[/sku][price][/price]</item>\
-            <item>[sku]AM - 2[/sku][price]10[/price]</item>\
+            <item>[sku]PRE - 1[/sku][price][/price]</item>\
+            <item>[sku]PRE - 2[/sku][price]10[/price]</item>\
             </channel></rss>";
 
         let book = parse(feed);
 
-        let item = book.get("AM - 6285").expect("item should be parsed");
+        let item = book.get("PRE - 6285").expect("item should be parsed");
         assert_eq!(item.original_price, 4.06);
         assert_eq!(item.profit_euro, 2.0);
         assert_eq!(item.profit_percent, 5.0);
 
         // No price -> skipped.
-        assert!(book.get("AM - 1").is_none());
-        // Missing discounts default to 0, like the C++.
+        assert!(book.get("PRE - 1").is_none());
+        // Missing discounts default to 0.
         let no_discount = book
-            .get("AM - 2")
+            .get("PRE - 2")
             .expect("item without discounts should be parsed");
         assert_eq!(no_discount.profit_euro, 0.0);
         assert_eq!(no_discount.profit_percent, 0.0);

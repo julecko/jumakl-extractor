@@ -9,8 +9,8 @@ use crate::sources::Record;
 
 const VAT: f64 = 1.23;
 
-/// Port of the price comparison in massExtraction's PriceExtrAndCalc.cpp.
-/// Records whose SKU isn't in the PriceBook are skipped (Ok(None)), like the C++.
+/// Compares each supplier price with our PriceBook price and derives buy, sell,
+/// and the fix flag. Records whose SKU isn't in the PriceBook are skipped (Ok(None)).
 pub struct PriceHandler<'a> {
     source: &'a SourceConfig,
     pricebook: &'a PriceBook,
@@ -39,8 +39,8 @@ impl Handler for PriceHandler<'_> {
             bail!("PriceHandler received a non-price record");
         };
 
-        // TODO: Automax discount flag (C++ label "Nepodlieha_zlave"). When it is
-        // "0", the C++ multiplies the supplier price by 0.8 before removing VAT.
+        // TODO: discount flag (source label "Nepodlieha_zlave"). When it is
+        // "0", the supplier price should be multiplied by 0.8 before removing VAT.
         // Record doesn't carry that field yet, so the discount is not applied.
         let buy = if self.source.price_includes_vat {
             round2(supplier_price / VAT)
@@ -48,7 +48,7 @@ impl Handler for PriceHandler<'_> {
             supplier_price
         };
 
-        // The PriceBook keys include the prefix, e.g. "AM - 6285".
+        // The PriceBook keys include the prefix, e.g. "PRE - 6285".
         let key = format!("{} - {}", self.source.prefix, record.sku);
         let Some(reference) = self.pricebook.get(&key) else {
             debug!("sku not in pricebook, skipping (sku={key})");
@@ -63,7 +63,7 @@ impl Handler for PriceHandler<'_> {
         let fix = !(0.98..=1.02).contains(&ratio);
         if fix {
             debug!(
-                "{key} Original Cena: {} Nova Cena: {sell:.2}",
+                "{key} original price: {}, new price: {sell:.2}",
                 reference.original_price
             );
             self.fixes.push(PriceFix {
@@ -94,8 +94,8 @@ impl Handler for PriceHandler<'_> {
     }
 }
 
-/// Same formula as the C++ calcSellPrice. A discount percent above 800 switches
-/// to a second formula, ported as-is.
+/// Sell price including VAT. A profit percent above 800 switches to a second
+/// formula, kept as-is.
 fn sell_price(buy: f64, reference: &PriceReference) -> f64 {
     let profit = if reference.profit_percent > 800.0 {
         reference.profit_euro + buy * ((1000.0 - reference.profit_percent) / 100.0)
@@ -106,7 +106,7 @@ fn sell_price(buy: f64, reference: &PriceReference) -> f64 {
     profit * VAT
 }
 
-/// Rounds the same way the C++ "%.2f" formatting does.
+/// Rounds to two decimal places.
 fn round2(value: f64) -> f64 {
     format!("{value:.2}").parse().unwrap_or(value)
 }

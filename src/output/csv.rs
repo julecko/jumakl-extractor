@@ -85,7 +85,7 @@ impl OutputWriter for PriceCsvWriter {
             anyhow::bail!("PriceCsvWriter received a non-price row");
         };
 
-        // Same format as the C++ version: prefixed SKU, two-decimal prices,
+        // Prefixed SKU, two-decimal prices,
         // and Yes/No for the fix flag.
         let fix = if *fix { "Yes" } else { "No" };
         writeln!(self.file, "{prefix} - {sku};{buy:.2};{sell:.2};{fix}")?;
