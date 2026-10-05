@@ -1,5 +1,5 @@
-use anyhow::{Context, Result};
-use lettre::message::{MultiPart, SinglePart};
+use anyhow::{Context, Result, bail};
+use lettre::message::{Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::SmtpTransport;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, Transport};
@@ -15,7 +15,7 @@ pub struct EmailReporter {
     username: String,
     password: String,
     from: String,
-    to: String,
+    to: Vec<Mailbox>,
 }
 
 impl EmailReporter {
@@ -25,9 +25,30 @@ impl EmailReporter {
             username: env::var("MAIL_USERNAME").context("MAIL_USERNAME not set in .env")?,
             password: env::var("MAIL_PASSWORD").context("MAIL_PASSWORD not set in .env")?,
             from: env::var("MAIL_FROM").context("MAIL_FROM not set in .env")?,
-            to: env::var("MAIL_TO").context("MAIL_TO not set in .env")?,
+            to: parse_recipients(&env::var("MAIL_TO").context("MAIL_TO not set in .env")?)?,
         })
     }
+}
+
+/// MAIL_TO may hold several addresses separated by commas, e.g.
+/// `a@x.sk,b@y.sk`. Blank entries are ignored.
+fn parse_recipients(raw: &str) -> Result<Vec<Mailbox>> {
+    let recipients = raw
+        .split(',')
+        .map(str::trim)
+        .filter(|address| !address.is_empty())
+        .map(|address| {
+            address
+                .parse::<Mailbox>()
+                .with_context(|| format!("invalid MAIL_TO address: '{address}'"))
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    if recipients.is_empty() {
+        bail!("MAIL_TO contains no addresses");
+    }
+
+    Ok(recipients)
 }
 
 impl Reporter for EmailReporter {
@@ -39,9 +60,13 @@ impl Reporter for EmailReporter {
             .sum::<usize>()
             + summary.program_errors.len();
 
-        let message = Message::builder()
-            .from(self.from.parse().context("invalid MAIL_FROM address")?)
-            .to(self.to.parse().context("invalid MAIL_TO address")?)
+        let mut builder =
+            Message::builder().from(self.from.parse().context("invalid MAIL_FROM address")?);
+        for recipient in &self.to {
+            builder = builder.to(recipient.clone());
+        }
+
+        let message = builder
             .subject(format!(
                 "Extraction report - {} source(s), {total_errors} error(s)",
                 summary.reports.len()
@@ -162,4 +187,23 @@ fn html_escape(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_comma_separated_recipients() {
+        let recipients = parse_recipients("a@x.sk, b@y.sk ,,").expect("should parse");
+        assert_eq!(recipients.len(), 2);
+        assert_eq!(recipients[0].email.to_string(), "a@x.sk");
+        assert_eq!(recipients[1].email.to_string(), "b@y.sk");
+    }
+
+    #[test]
+    fn rejects_invalid_or_empty_recipients() {
+        assert!(parse_recipients("not-an-address").is_err());
+        assert!(parse_recipients(" , ").is_err());
+    }
 }
