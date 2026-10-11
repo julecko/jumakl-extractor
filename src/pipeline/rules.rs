@@ -81,9 +81,7 @@ struct SkuSubstring {
 impl RecordRule for SkuSubstring {
     fn apply(&self, record: &mut Record) -> Result<()> {
         let chars: Vec<char> = record.sku.chars().collect();
-        // TODO: decide what a short SKU should do. massExtraction clears the SKU
-        // and still writes the row (with an empty SKU) and only alerts on the
-        // console. For now the SKU is left unchanged.
+        // TODO: decide what a short SKU should do. For now it's left unchanged.
         if chars.len() < self.start + self.drop_end {
             tracing::debug!(
                 "sku '{}' is too short for the sku_substring rule, leaving it unchanged",

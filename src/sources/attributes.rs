@@ -11,6 +11,7 @@ use crate::config::{AttributesConfig, FieldMapping};
 impl FormatParser for AttributesConfig {
     fn parse(
         &self,
+        _url: &str,
         content: &str,
         fields: &HashMap<String, FieldMapping>,
         on_record: &mut dyn FnMut(Record) -> Result<()>,
@@ -130,6 +131,7 @@ mod tests {
         let mut skus = Vec::new();
         config
             .parse(
+                "",
                 content,
                 &fields(&[("sku", "Code"), ("stock", "Qty")]),
                 &mut |record| {

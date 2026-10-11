@@ -1,5 +1,6 @@
 mod attributes;
 mod csv;
+mod custom;
 mod xml;
 
 use anyhow::{Context, Result};
@@ -84,9 +85,18 @@ impl Record {
 /// `on_record` fires once per parsed record instead of the parser collecting
 /// a Vec<Record> - the caller decides what to keep, so nothing forces the
 /// whole file to sit in memory at once.
+///
+/// `url` is only needed by formats that must fetch more than the one request
+/// `run_source` already made (e.g. a paginated custom scrape) - xml/csv/
+/// attributes ignore it, since `content` is everything they need. Note there's
+/// no `client` parameter: a format that needs to make its own extra requests
+/// (see `custom/`) builds its own, rather than reusing the shared one - this
+/// keeps each custom source's cookies/session isolated from every other
+/// source, which matters once a supplier needs cookie-based auth.
 pub trait FormatParser {
     fn parse(
         &self,
+        url: &str,
         content: &str,
         fields: &HashMap<String, FieldMapping>,
         on_record: &mut dyn FnMut(Record) -> Result<()>,
@@ -101,7 +111,7 @@ pub fn parse_source(
     source
         .format_config
         .parser()
-        .parse(content, &source.fields, on_record)
+        .parse(&source.url, content, &source.fields, on_record)
 }
 
 /// Shared by every FormatParser impl: turns a raw selector match into the

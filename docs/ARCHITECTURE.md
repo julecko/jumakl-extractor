@@ -380,11 +380,12 @@ src/
 
   sources/                 # "how do I turn raw text into Records"
     mod.rs                 # Record/RecordValue/Value, FormatParser trait, parse_source() (no match)
-    csv.rs                 # impl FormatParser for CsvConfig - todo!() stub
+    csv.rs                 # impl FormatParser for CsvConfig - implemented
     xml.rs                 # impl FormatParser for XmlConfig - implemented, incl. CDATA
-    custom/                # not yet built - see "custom per-supplier processing" below
-      mod.rs
-      <supplier>.rs
+    attributes.rs          # impl FormatParser for AttributesConfig - implemented (e.g. Penta)
+    custom/                # impl FormatParser for CustomConfig - see "custom handlers" below
+      mod.rs               # handler dispatch match
+      html_listing1.rs     # paginated HTML listing + standalone pages; hardcoded, not config-driven
 
   pipeline/
     mod.rs                 # Handler trait, SourceReport, PriceFix, new_handler() boundary match,
@@ -417,21 +418,47 @@ templates/
   price_fix/mail.html, supplier.html, row.html    # price-fix mail
 ```
 
-### Custom per-supplier processing (planned, not built)
+### Custom handlers (implemented, one handler so far)
 
-For sources whose feed needs supplier-specific handling beyond generic
-xml/csv: add `FormatConfig::Custom(CustomConfig)` (`format = "custom"`,
-holding a `supplier: String`), and a new `sources/custom/mod.rs` implementing
-`FormatParser for CustomConfig` — its `parse()` does the *only* new match,
-`self.custom.supplier.as_str()` → picks a supplier-specific function, one
-file per supplier (`custom/automax.rs`, ...). This slots in as a third
-`FormatConfig` arm; nothing downstream changes. Not a registry/dynamic
-lookup unless there's a real reason (e.g. suppliers added without
-recompiling) — a plain `match` is enough for a handful of suppliers.
+For sources whose feed needs hardcoded handling beyond generic
+xml/csv/attributes (e.g. one isn't a feed at all, just an HTML page):
+`FormatConfig::Custom(CustomConfig)` (`format = "custom"`, holding a
+`handler: String`), and `sources/custom/mod.rs` implementing `FormatParser
+for CustomConfig` — its `parse()` does the *only* new match,
+`self.custom.handler.as_str()` → picks a dedicated module, one per handler
+(`custom/html_listing1.rs`, ...). This slots in as a fourth `FormatConfig`
+arm; nothing downstream changes. Handlers are deliberately **not
+config-driven** - each one hardcodes its own page markers/URLs, since those
+differ per source and a generic scraping schema big enough to cover all of
+them isn't worth building for a handful of one-off pages. Numbered rather
+than named after what they scrape, since more than one source may end up
+using the same shape of handler.
 
-The first candidate is **Penta**: its price and stock feeds aren't XML. The
-C++ parses them with label searches (`pentaSearch`), so Penta is missing from
-the Rust price sources until this exists.
+Penta didn't need this: its feeds are XML-attribute-based
+(`<StoItem Code="..." QtyFree="..." />`), so `format = "attributes"` (see
+below) covers it with zero custom code.
+
+**`html_listing1`** (`custom/html_listing1.rs`): a paginated HTML product
+listing, plus a handful of standalone product pages not reachable through
+the listing. The one request `run_source` already made is page 1; `parse()`
+then keeps incrementing `?page=N` and re-fetching/parsing until a page comes
+back containing the site's "no products" marker (that final, empty page is
+fetched but not parsed). Each listing page is split into product `<div>`
+blocks via balanced-div matching (the code/stock divs nest inside the
+product div, so a naive "next `</div>`" would close too early). After the
+listing, the hardcoded standalone product-page URLs are fetched and parsed
+by a second, simpler extractor.
+
+**`FormatParser::parse` grew one parameter** (`url: &str`), since a custom
+handler may need to issue *more* HTTP requests than the one `run_source`
+already made to get `content` — xml/csv/attributes ignore it (`_url`),
+`content` is everything they need. Deliberately **no `client` parameter**: a
+handler that needs extra requests builds its own client internally
+(`html_listing1::parse` calls `webrequest::build_client()` itself) instead
+of reusing the shared one `run_source` uses for the initial per-source
+fetch. That keeps each custom source's cookies/session isolated from every
+other source - needed once a handler requires a cookie-based login session
+that must not leak into any other source's requests.
 
 ### Config file: merge stock/price into one file (still planned, not done)
 
@@ -461,7 +488,7 @@ per mode underneath it (`sources.fields.stock`, `sources.fields.price`).
    field blocks. *(not started)*
 2. ~~Domain model (`model.rs`)~~ — superseded; `Record`/`RecordValue` (fixed
    struct, see above) fills this role.
-3. **Format parsers** — XML ✅ implemented (incl. CDATA). CSV still `todo!()`.
+3. **Format parsers** — XML ✅, CSV ✅, attributes ✅ (incl. CDATA for XML).
 4. **Pipeline wiring** — ✅ done: `pipeline::run` loops sources, never
    aborts the whole run on one bad source, collects a `SourceReport` per
    source either way.
@@ -478,8 +505,11 @@ per mode underneath it (`sources.fields.stock`, `sources.fields.price`).
    start) and diff against the new run to detect price/stock changes. Today
    the price comparison only runs against the current PriceBook feed, with no
    history. *(not started)*
-9. **Custom per-supplier processing**: `sources/custom/` per the plan above,
-   once a supplier actually needs it. Penta is the first candidate. *(not started)*
+9. **Custom handlers**: `sources/custom/` per the plan above. `html_listing1`
+   ✅ (paginated HTML listing + standalone pages, used by Meva). A cookie-
+   authenticated, crawled/paginated source (Banador) and a CSV source
+   needing a double-write per record (JJ Automotive) would each need their
+   own new handler module. *(partially started)*
 10. **API client + multiple summary formats**: added last, once reporting is
     stable — additive, shouldn't require touching earlier stages.
 

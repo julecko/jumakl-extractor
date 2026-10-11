@@ -128,6 +128,7 @@ pub enum FormatConfig {
     Xml(XmlConfig),
     Csv(CsvConfig),
     Attributes(AttributesConfig),
+    Custom(CustomConfig),
 }
 
 impl FormatConfig {
@@ -138,8 +139,24 @@ impl FormatConfig {
             FormatConfig::Xml(cfg) => cfg,
             FormatConfig::Csv(cfg) => cfg,
             FormatConfig::Attributes(cfg) => cfg,
+            FormatConfig::Custom(cfg) => cfg,
         }
     }
+}
+
+/// Feeds that need their own hardcoded scraping logic, beyond generic
+/// xml/csv/attributes (e.g. an HTML page instead of a feed at all).
+/// `handler` picks the module in `sources::custom` - the only place that
+/// matches on it. Each handler module hardcodes its own page structure and
+/// URLs; nothing here is generic or config-driven.
+#[derive(Debug, Deserialize)]
+pub struct CustomConfig {
+    pub custom: CustomOptions,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CustomOptions {
+    pub handler: String,
 }
 
 /// Feeds where each record is an element and its values are attributes, e.g.

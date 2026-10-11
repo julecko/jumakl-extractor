@@ -10,6 +10,7 @@ use crate::config::{FieldMapping, XmlConfig};
 impl FormatParser for XmlConfig {
     fn parse(
         &self,
+        _url: &str,
         content: &str,
         fields: &HashMap<String, FieldMapping>,
         on_record: &mut dyn FnMut(Record) -> Result<()>,

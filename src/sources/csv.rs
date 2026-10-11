@@ -7,6 +7,7 @@ use crate::config::{CsvConfig, FieldMapping};
 impl FormatParser for CsvConfig {
     fn parse(
         &self,
+        _url: &str,
         content: &str,
         fields: &HashMap<String, FieldMapping>,
         on_record: &mut dyn FnMut(Record) -> Result<()>,
@@ -167,7 +168,7 @@ mod tests {
         fields: &HashMap<String, FieldMapping>,
     ) -> Result<Vec<Record>> {
         let mut records = Vec::new();
-        config.parse(content, fields, &mut |record| {
+        config.parse("", content, fields, &mut |record| {
             records.push(record);
             Ok(())
         })?;
