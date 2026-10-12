@@ -1,6 +1,7 @@
 mod cli;
 mod config;
 mod logging;
+mod notify;
 mod output;
 mod paths;
 mod pipeline;
@@ -100,6 +101,11 @@ fn main() -> anyhow::Result<()> {
 
         reports.extend(result.reports);
         program_errors.extend(result.program_errors);
+
+        if let Err(reason) = output::verify(&output::output_path(mode)) {
+            tracing::error!("{mode:?}: output verification failed: {reason}");
+            program_errors.push(format!("{mode:?}: output verification failed: {reason}"));
+        }
     }
 
     if let Some(requested) = &cli.sources {
@@ -125,6 +131,8 @@ fn main() -> anyhow::Result<()> {
     let elapsed = start.elapsed();
     tracing::info!("Program took {elapsed:?}");
 
+    let failed = !summary_has_succeeded(&program_errors, &reports);
+
     let summary = report::RunSummary {
         elapsed,
         reports,
@@ -136,5 +144,14 @@ fn main() -> anyhow::Result<()> {
         tracing::error!("failed to send report email: {err:#}");
     }
 
+    notify::notify_run_result(failed);
+
     Ok(())
+}
+
+/// Whether the run counts as successful: no program-level errors, and no
+/// source reported one either. Used only for the pulse ping's plain
+/// succeeded/failed signal, not for anything in the email report.
+fn summary_has_succeeded(program_errors: &[String], reports: &[pipeline::SourceReport]) -> bool {
+    program_errors.is_empty() && reports.iter().all(|report| report.errors.is_empty())
 }

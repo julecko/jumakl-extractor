@@ -7,6 +7,12 @@ use super::{OutputWriter, WriteRow};
 use crate::paths::output_folder_path;
 use crate::sources::prefixed_sku;
 
+pub const STOCK_FILENAME: &str = "massDataStock.csv";
+pub const PRICE_FILENAME: &str = "massDataPrice.csv";
+/// The delimiter every writer in this module uses - shared with
+/// `output::verify`, which checks column counts against it.
+pub const DELIMITER: char = ';';
+
 fn create_file(filename: &str) -> Result<BufWriter<File>> {
     let path = output_folder_path().join(filename);
 
@@ -26,7 +32,7 @@ pub struct StockCsvWriter {
 
 impl StockCsvWriter {
     pub fn create() -> Result<Self> {
-        let mut file = create_file("massDataStock.csv")?;
+        let mut file = create_file(STOCK_FILENAME)?;
         writeln!(file, "SOURCE;SKU;STOCK;DATE")?;
 
         Ok(Self {
@@ -67,7 +73,7 @@ pub struct PriceCsvWriter {
 
 impl PriceCsvWriter {
     pub fn create() -> Result<Self> {
-        let mut file = create_file("massDataPrice.csv")?;
+        let mut file = create_file(PRICE_FILENAME)?;
         writeln!(file, "SKU;BUY_PRICE;SELL_PRICE;FIX_PRICE")?;
 
         Ok(Self { file })
