@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use tracing::{debug, info};
+use tracing::info;
 
 use super::{Handler, PriceFix, SourceReport};
 use crate::config::SourceConfig;
@@ -45,7 +45,6 @@ impl Handler for PriceHandler<'_> {
         // The PriceBook keys include the prefix, e.g. "PRE - 6285".
         let key = prefixed_sku(&self.source.prefix, &record.sku);
         let Some(reference) = self.pricebook.get(&key) else {
-            debug!("sku not in pricebook, skipping (sku={key})");
             self.unmatched_count += 1;
             return Ok(None);
         };
@@ -56,10 +55,6 @@ impl Handler for PriceHandler<'_> {
         let ratio = sell / reference.original_price;
         let fix = !(0.98..=1.02).contains(&ratio);
         if fix {
-            debug!(
-                "{key} original price: {}, new price: {sell:.2}",
-                reference.original_price
-            );
             self.fixes.push(PriceFix {
                 sku: key,
                 original_price: reference.original_price,

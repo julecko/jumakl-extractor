@@ -348,6 +348,17 @@ price needs a fix. It's grouped by supplier, one table per supplier:
 - `SourceConfig.price_includes_vat: bool` (default `false`). When `true`, the
   price handler divides the supplier price by 1.23 to get the net buy price.
   Set on Automax only. Ignored in stock mode.
+- `SourceConfig.write_unprefixed_too: bool` (default `false`). When `true`,
+  `run_source` writes each record a second time with an empty prefix, right
+  after the normal prefixed write (same `WriteRow`, so no extra business
+  logic - purely a writing-mechanics decision). Set on J-J Automotive, whose
+  downstream consumer keys off the bare sku as well as the prefixed one.
+- `CsvOptions.fields_by_position: bool` (default `false`). Normally, with
+  `has_header = true`, a field's selector is matched against the header
+  row's column names. When this is set, selectors are column positions
+  instead (the header row is still consumed/skipped, just not read) - for
+  feeds whose header text isn't a reliable or known column name, only its
+  order. Set on J-J Automotive.
 - `Config::load` now takes `kind: ExtractKind` and calls `Config::validate`
   after parsing: every source's `fields` must contain `"sku"`, plus
   `"stock"` or `"price"` depending on `kind` — fails fast at load time
@@ -383,9 +394,12 @@ src/
     csv.rs                 # impl FormatParser for CsvConfig - implemented
     xml.rs                 # impl FormatParser for XmlConfig - implemented, incl. CDATA
     attributes.rs          # impl FormatParser for AttributesConfig - implemented (e.g. Penta)
-    custom/                # impl FormatParser for CustomConfig - see "custom handlers" below
-      mod.rs               # handler dispatch match
-      html_listing1.rs     # paginated HTML listing + standalone pages; hardcoded, not config-driven
+    custom/                # bespoke formats grouped apart from xml/csv/attributes - see below
+      mod.rs               # just declares the submodules, no dispatch logic
+      html_listing1.rs     # impl FormatParser for HtmlListing1Config - paginated HTML listing
+                           # + standalone pages; fully config-driven
+      auth_crawl1.rs       # impl FormatParser for AuthCrawl1Config - cookie-authenticated
+                           # login + crawled/paginated category pages; fully config-driven
 
   pipeline/
     mod.rs                 # Handler trait, SourceReport, PriceFix, new_handler() boundary match,
@@ -418,47 +432,71 @@ templates/
   price_fix/mail.html, supplier.html, row.html    # price-fix mail
 ```
 
-### Custom handlers (implemented, one handler so far)
+### Custom handlers (implemented, two so far)
 
-For sources whose feed needs hardcoded handling beyond generic
-xml/csv/attributes (e.g. one isn't a feed at all, just an HTML page):
-`FormatConfig::Custom(CustomConfig)` (`format = "custom"`, holding a
-`handler: String`), and `sources/custom/mod.rs` implementing `FormatParser
-for CustomConfig` — its `parse()` does the *only* new match,
-`self.custom.handler.as_str()` → picks a dedicated module, one per handler
-(`custom/html_listing1.rs`, ...). This slots in as a fourth `FormatConfig`
-arm; nothing downstream changes. Handlers are deliberately **not
-config-driven** - each one hardcodes its own page markers/URLs, since those
-differ per source and a generic scraping schema big enough to cover all of
-them isn't worth building for a handful of one-off pages. Numbered rather
-than named after what they scrape, since more than one source may end up
-using the same shape of handler.
+For sources whose feed needs handling beyond generic xml/csv/attributes
+(e.g. one isn't a feed at all, just an HTML page): `sources/custom/` holds
+one module per handler shape, numbered rather than named after what they
+scrape (since more than one source may end up using the same shape). Each
+module defines its own `FormatConfig` variant and config struct, and
+implements `FormatParser` directly for it - there's no extra dispatch layer;
+`FormatConfig::parser()`'s one boundary match resolves straight to the right
+module, same as xml/csv/attributes.
 
-Penta didn't need this: its feeds are XML-attribute-based
+**Both handlers below are fully config-driven: every page-structure detail
+(markers, URLs, field patterns, login form field names) lives in the
+source's own TOML table, never hardcoded in the `.rs` file.** The one
+exception is credentials, which belong in `.env` (like `MAIL_*`), never in a
+config file alongside non-secret data.
+
+Penta didn't need a custom handler: its feeds are XML-attribute-based
 (`<StoItem Code="..." QtyFree="..." />`), so `format = "attributes"` (see
-below) covers it with zero custom code.
+below) covers it with zero extra code.
 
-**`html_listing1`** (`custom/html_listing1.rs`): a paginated HTML product
-listing, plus a handful of standalone product pages not reachable through
-the listing. The one request `run_source` already made is page 1; `parse()`
-then keeps incrementing `?page=N` and re-fetching/parsing until a page comes
-back containing the site's "no products" marker (that final, empty page is
-fetched but not parsed). Each listing page is split into product `<div>`
-blocks via balanced-div matching (the code/stock divs nest inside the
-product div, so a naive "next `</div>`" would close too early). After the
-listing, the hardcoded standalone product-page URLs are fetched and parsed
-by a second, simpler extractor.
+**`html_listing1`** (`custom/html_listing1.rs`, config: `HtmlListing1Config`,
+used by Meva): a paginated HTML product listing, plus a handful of
+standalone product pages not reachable through the listing. The one request
+`run_source` already made is page 1; `parse()` then keeps incrementing the
+configured pagination query parameter and re-fetching/parsing until a page
+comes back containing the configured "no more pages" marker (that final,
+empty page is fetched but not parsed) - or, if no such marker is configured,
+treats the one page as the whole listing. Each listing page is split into
+record blocks via balanced-tag matching (a configured "nested open" marker
+vs. the block's own close marker), since a field's own markers can nest
+inside the block. Each field is found via a configured `after`/`until` pair,
+with an optional second-pass `value_prefix`/`value_suffix` to pull a value
+out of a sentence (e.g. a number out of "In stock: 9 units").
+
+**`auth_crawl1`** (`custom/auth_crawl1.rs`, config: `AuthCrawl1Config`, used
+by Banador): a cookie-authenticated catalog site (ASP.NET WebForms).
+`parse()` builds its own `reqwest::Client` with `cookie_store(true)` and
+logs in before doing anything else — `content` (the unauthenticated page
+`run_source` already fetched with the shared client) is ignored, since
+nothing meaningful can be scraped before login anyway; the homepage is
+fetched again once the client's cookie jar actually holds a session.
+`authenticate()` GETs the configured login url, scrapes its real
+`__VIEWSTATE` (plus `__VIEWSTATEGENERATOR`/`__EVENTVALIDATION` when present)
+out of the page's own hidden `<input>` tags, and POSTs them alongside
+`AUTH_CRAWL1_USERNAME`/`AUTH_CRAWL1_PASSWORD` (from `.env`) and the
+configured form field names — ASP.NET validates `__VIEWSTATE` server-side,
+so a stale or placeholder value fails the login outright. After login:
+extracts the category nav's links off the homepage (the nav-block markers
+and the href-extraction regex are the two pieces of this module that are
+*not* config-driven, since "an anchor tag's href" is generic, not
+supplier-specific), and for each one, paginates `?page=N` until a page
+repeats a product already seen in that category (or comes back with none),
+using the configured `id_pattern`/`quantity_pattern` regexes.
 
 **`FormatParser::parse` grew one parameter** (`url: &str`), since a custom
 handler may need to issue *more* HTTP requests than the one `run_source`
 already made to get `content` — xml/csv/attributes ignore it (`_url`),
 `content` is everything they need. Deliberately **no `client` parameter**: a
 handler that needs extra requests builds its own client internally
-(`html_listing1::parse` calls `webrequest::build_client()` itself) instead
-of reusing the shared one `run_source` uses for the initial per-source
-fetch. That keeps each custom source's cookies/session isolated from every
-other source - needed once a handler requires a cookie-based login session
-that must not leak into any other source's requests.
+(`html_listing1`/`auth_crawl1` each call their own client constructor)
+instead of reusing the shared one `run_source` uses for the initial
+per-source fetch. That keeps each custom source's cookies/session isolated
+from every other source - `auth_crawl1`'s own cookie-based login session
+never leaks into any other source's requests.
 
 ### Config file: merge stock/price into one file (still planned, not done)
 
@@ -506,10 +544,12 @@ per mode underneath it (`sources.fields.stock`, `sources.fields.price`).
    the price comparison only runs against the current PriceBook feed, with no
    history. *(not started)*
 9. **Custom handlers**: `sources/custom/` per the plan above. `html_listing1`
-   ✅ (paginated HTML listing + standalone pages, used by Meva). A cookie-
-   authenticated, crawled/paginated source (Banador) and a CSV source
-   needing a double-write per record (JJ Automotive) would each need their
-   own new handler module. *(partially started)*
+   ✅ (paginated HTML listing + standalone pages, used by Meva). `auth_crawl1`
+   ✅ (cookie-authenticated login + crawled/paginated category pages, used by
+   Banador) - not yet verified against the real site (no network access
+   while building it); worth a real run with actual credentials before
+   trusting its output.
+   *(done)*
 10. **API client + multiple summary formats**: added last, once reporting is
     stable — additive, shouldn't require touching earlier stages.
 

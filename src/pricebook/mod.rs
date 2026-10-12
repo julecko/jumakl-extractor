@@ -57,7 +57,6 @@ fn parse(content: &str) -> PriceBook {
             optional_number(body, "price_zisk_euro"),
             optional_number(body, "price_zisk_percent"),
         ) else {
-            tracing::debug!("pricebook item {sku} has an unreadable discount value, skipping");
             continue;
         };
 

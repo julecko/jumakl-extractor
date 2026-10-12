@@ -87,8 +87,6 @@ pub fn run(
     sku_exclusions: &[Regex],
     pricebook_config: Option<&PriceBookConfig>,
 ) -> RunResult {
-    tracing::debug!("Starting extraction");
-
     let client = match webrequest::build_client() {
         Ok(c) => c,
         Err(err) => {
@@ -178,6 +176,8 @@ fn run_source(
     sku_exclusions: &[Regex],
     pricebook: Option<&PriceBook>,
 ) -> SourceReport {
+    tracing::debug!("starting extraction for source '{}'", source.name);
+
     let content = match webrequest::fetch(client, &source.url, source.auth.as_ref()) {
         Ok(content) => content,
         Err(err) => {
@@ -234,7 +234,6 @@ fn run_source(
             .iter()
             .any(|pattern| pattern.is_match(&record.sku))
         {
-            tracing::debug!("skipping excluded sku (sku={})", record.sku);
             excluded_count += 1;
             return Ok(());
         }
@@ -244,6 +243,19 @@ fn run_source(
                 if let Err(err) = writer.write_record(&record.sku, &row, shortname, prefix) {
                     tracing::warn!(
                         "failed to write record (source={}) (sku={}): {err:#}",
+                        source.name,
+                        record.sku
+                    );
+                    external_errors.push(format!(
+                        "write failed (source={}) (sku={}): {err:#}",
+                        source.name, record.sku
+                    ));
+                }
+                if source.write_unprefixed_too
+                    && let Err(err) = writer.write_record(&record.sku, &row, shortname, "")
+                {
+                    tracing::warn!(
+                        "failed to write unprefixed record (source={}) (sku={}): {err:#}",
                         source.name,
                         record.sku
                     );

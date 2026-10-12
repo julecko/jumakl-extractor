@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tracing::{debug, info};
+use tracing::info;
 
 use super::{Handler, SourceReport};
 use crate::output::WriteRow;
@@ -14,7 +14,6 @@ pub struct StockHandler {
 impl Handler for StockHandler {
     fn on_record(&mut self, record: &Record) -> Result<Option<WriteRow>> {
         self.record_count += 1;
-        debug!("{:?}", record);
 
         let Some(n) = record.value.as_stock() else {
             anyhow::bail!("StockHandler received a non-stock record");

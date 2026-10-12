@@ -77,6 +77,12 @@ pub struct SourceConfig {
     #[serde(default)]
     pub rules: Vec<RuleConfig>,
 
+    /// When true, each written record is written twice: once with `prefix`,
+    /// once with an empty prefix. Some downstream consumers key off the
+    /// unprefixed SKU as well as the prefixed one.
+    #[serde(default)]
+    pub write_unprefixed_too: bool,
+
     #[serde(flatten)]
     pub format_config: FormatConfig,
 }
@@ -128,7 +134,8 @@ pub enum FormatConfig {
     Xml(XmlConfig),
     Csv(CsvConfig),
     Attributes(AttributesConfig),
-    Custom(CustomConfig),
+    HtmlListing1(Box<HtmlListing1Config>),
+    AuthCrawl1(Box<AuthCrawl1Config>),
 }
 
 impl FormatConfig {
@@ -139,24 +146,108 @@ impl FormatConfig {
             FormatConfig::Xml(cfg) => cfg,
             FormatConfig::Csv(cfg) => cfg,
             FormatConfig::Attributes(cfg) => cfg,
-            FormatConfig::Custom(cfg) => cfg,
+            FormatConfig::HtmlListing1(cfg) => cfg.as_ref(),
+            FormatConfig::AuthCrawl1(cfg) => cfg.as_ref(),
         }
     }
 }
 
-/// Feeds that need their own hardcoded scraping logic, beyond generic
-/// xml/csv/attributes (e.g. an HTML page instead of a feed at all).
-/// `handler` picks the module in `sources::custom` - the only place that
-/// matches on it. Each handler module hardcodes its own page structure and
-/// URLs; nothing here is generic or config-driven.
+/// A paginated HTML listing of repeating blocks, plus optionally a handful
+/// of standalone pages outside that listing. Every page-structure detail is
+/// config - nothing supplier-specific lives in `sources::custom::html_listing1`.
 #[derive(Debug, Deserialize)]
-pub struct CustomConfig {
-    pub custom: CustomOptions,
+pub struct HtmlListing1Config {
+    pub html_listing1: HtmlListing1Options,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CustomOptions {
-    pub handler: String,
+pub struct HtmlListing1Options {
+    /// Literal substring marking the start of one record's block.
+    pub record_start: String,
+    /// Literal substring marking a nested element of the same kind the
+    /// record block itself opens with (e.g. another opening tag of the same
+    /// kind) - tracked so an inner element's close isn't mistaken for the
+    /// record block's own close.
+    pub nested_open: String,
+    /// Literal substring that closes one level of nesting, and the record
+    /// block itself once nesting returns to zero.
+    pub record_end: String,
+    /// When a freshly fetched page contains this substring, stop paginating
+    /// (that page is fetched but not parsed). Omit to fetch only `url`, with
+    /// no pagination.
+    #[serde(default)]
+    pub stop_marker: Option<String>,
+    /// Query parameter to increment to get the next page's url. Required
+    /// when `stop_marker` is set.
+    #[serde(default)]
+    pub page_param: Option<String>,
+    /// Standalone pages outside the paginated listing, each treated as one
+    /// implicit record via `extra_page_fields`.
+    #[serde(default)]
+    pub extra_pages: Vec<String>,
+    /// How to find sku and stock/price inside each record block.
+    pub fields: HashMap<String, HtmlField>,
+    /// How to find fields on an `extra_pages` entry. Usually shaped
+    /// differently than `fields`, since a standalone page isn't wrapped in
+    /// the listing's repeating block.
+    #[serde(default)]
+    pub extra_page_fields: HashMap<String, HtmlField>,
+}
+
+/// Finds one field's raw text: starting right after the first `after`,
+/// skipping `skip_closing_brackets` '>' characters first (to jump past a
+/// tag's own attributes, which may vary per record and so can't be matched
+/// literally), capturing up to `until`. When `value_prefix`/`value_suffix`
+/// are set, a second pass extracts the text between them out of that raw
+/// text (e.g. pulling a number out of a sentence). `default` is used when
+/// the field - or, with prefix/suffix set, the inner value - isn't found.
+#[derive(Debug, Deserialize, Clone)]
+pub struct HtmlField {
+    pub after: String,
+    #[serde(default)]
+    pub skip_closing_brackets: usize,
+    pub until: String,
+    #[serde(default)]
+    pub value_prefix: Option<String>,
+    #[serde(default)]
+    pub value_suffix: Option<String>,
+    #[serde(default)]
+    pub default: Option<String>,
+}
+
+/// A cookie-authenticated catalog: log in once (credentials from
+/// `AUTH_CRAWL1_USERNAME`/`AUTH_CRAWL1_PASSWORD` in `.env` - secrets never
+/// belong in a config file), then crawl every category link off the site's
+/// nav menu, paginating each one until a page repeats a product already
+/// seen. Every page-structure/markup detail is config - nothing
+/// supplier-specific lives in `sources::custom::auth_crawl1`.
+#[derive(Debug, Deserialize)]
+pub struct AuthCrawl1Config {
+    pub auth_crawl1: AuthCrawl1Options,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AuthCrawl1Options {
+    pub login_url: String,
+    /// Sent as the login POST's `Origin`/`Referer` header.
+    pub origin: String,
+    /// The login form's `__EVENTTARGET` value.
+    pub event_target: String,
+    /// The login form's username/password field names.
+    pub username_field: String,
+    pub password_field: String,
+    /// Literal substrings bounding the nav block that holds every category link.
+    pub nav_start: String,
+    pub nav_end: String,
+    /// Literal substrings bounding one category page's product table.
+    pub products_start: String,
+    pub products_end: String,
+    /// Regex with one capture group: a product's code. Searched for
+    /// repeatedly within the products section.
+    pub id_pattern: String,
+    /// Regex with one capture group: a product's quantity. Searched for in
+    /// the text right after each `id_pattern` match.
+    pub quantity_pattern: String,
 }
 
 /// Feeds where each record is an element and its values are attributes, e.g.
@@ -192,6 +283,12 @@ pub struct CsvOptions {
     pub delimiter: String,
     #[serde(default = "default_true")]
     pub has_header: bool,
+    /// When true, field selectors are column positions (e.g. "3") rather
+    /// than header column names - the header row is still skipped if
+    /// `has_header` is true, just not used to resolve selectors. For feeds
+    /// whose columns are only reliable by position, not by name.
+    #[serde(default)]
+    pub fields_by_position: bool,
 }
 
 fn default_delimiter() -> String {

@@ -83,10 +83,6 @@ impl RecordRule for SkuSubstring {
         let chars: Vec<char> = record.sku.chars().collect();
         // TODO: decide what a short SKU should do. For now it's left unchanged.
         if chars.len() < self.start + self.drop_end {
-            tracing::debug!(
-                "sku '{}' is too short for the sku_substring rule, leaving it unchanged",
-                record.sku
-            );
             return Ok(());
         }
         record.sku = chars[self.start..chars.len() - self.drop_end]

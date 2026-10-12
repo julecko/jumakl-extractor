@@ -15,8 +15,10 @@ impl FormatParser for CsvConfig {
         let delimiter = single_char(&self.csv.delimiter)?;
         let mut rest = content;
 
-        // With a header, each field's selector is a column name. Without one,
-        // the selector is the column's position, starting at 0.
+        // With a header, each field's selector is normally a column name.
+        // Without one, or with fields_by_position set, the selector is the
+        // column's position, starting at 0 - the header row (if any) is
+        // still consumed/skipped, just not used to resolve selectors.
         let header = if self.csv.has_header {
             Some(next_row(&mut rest, delimiter).context("csv has no header row")?)
         } else {
@@ -25,19 +27,25 @@ impl FormatParser for CsvConfig {
 
         let mut columns: Vec<(&str, &FieldMapping, usize)> = Vec::with_capacity(fields.len());
         for (name, mapping) in fields {
-            let index = match &header {
-                Some(header) => header
-                    .iter()
-                    .position(|column| column.trim() == mapping.selector)
-                    .with_context(|| {
-                        format!(
-                            "csv header has no column '{}' for field '{name}'",
-                            mapping.selector
-                        )
+            let index = if self.csv.fields_by_position {
+                mapping.selector.parse().with_context(|| {
+                    format!("field '{name}' needs a column number when fields_by_position is set")
+                })?
+            } else {
+                match &header {
+                    Some(header) => header
+                        .iter()
+                        .position(|column| column.trim() == mapping.selector)
+                        .with_context(|| {
+                            format!(
+                                "csv header has no column '{}' for field '{name}'",
+                                mapping.selector
+                            )
+                        })?,
+                    None => mapping.selector.parse().with_context(|| {
+                        format!("field '{name}' needs a column number when the csv has no header")
                     })?,
-                None => mapping.selector.parse().with_context(|| {
-                    format!("field '{name}' needs a column number when the csv has no header")
-                })?,
+                }
             };
             columns.push((name.as_str(), mapping, index));
         }
@@ -144,6 +152,7 @@ mod tests {
             csv: CsvOptions {
                 delimiter: ",".to_string(),
                 has_header,
+                fields_by_position: false,
             },
         }
     }
@@ -240,5 +249,19 @@ mod tests {
             parse_all(&config, content, &fields(&[("sku", "0"), ("stock", "1")])).unwrap();
 
         assert_eq!(records[0].sku, "AB1");
+    }
+
+    #[test]
+    fn uses_column_positions_with_a_header_when_fields_by_position_is_set() {
+        // The header row is skipped, but selectors are still positions, not names.
+        let content = "Ignored,Header,Names\nAB1,5\nCD2,0\n";
+        let mut config = csv_config(true);
+        config.csv.fields_by_position = true;
+        let records =
+            parse_all(&config, content, &fields(&[("sku", "0"), ("stock", "1")])).unwrap();
+
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0].sku, "AB1");
+        assert_eq!(records[1].sku, "CD2");
     }
 }

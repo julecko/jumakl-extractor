@@ -1,25 +1,9 @@
+//! Formats whose structure is too bespoke for generic xml/csv/attributes
+//! (paginated HTML listings, authenticated crawls, ...), grouped here apart
+//! from the simple field-selector formats. Each still implements
+//! `FormatParser` directly for its own config type (see `sources::mod`'s
+//! `FormatConfig::parser()` boundary match) - there's no dispatch in this
+//! module itself.
+
+mod auth_crawl1;
 mod html_listing1;
-
-use anyhow::{Result, bail};
-use std::collections::HashMap;
-
-use super::{FormatParser, Record};
-use crate::config::{CustomConfig, FieldMapping};
-
-/// Dispatches on `handler` to a dedicated module, one per source that needs
-/// hardcoded, non-generic scraping. The only place that matches on it -
-/// everything downstream only ever sees the generic FormatParser interface.
-impl FormatParser for CustomConfig {
-    fn parse(
-        &self,
-        url: &str,
-        content: &str,
-        _fields: &HashMap<String, FieldMapping>,
-        on_record: &mut dyn FnMut(Record) -> Result<()>,
-    ) -> Result<()> {
-        match self.custom.handler.as_str() {
-            "html_listing1" => html_listing1::parse(url, content, on_record),
-            other => bail!("unknown custom handler '{other}'"),
-        }
-    }
-}
